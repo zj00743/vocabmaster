@@ -26,7 +26,8 @@ async function fetchWordsForScope(scope: VocabExportScope) {
       const batch = (data ?? [])
         .map((row) => {
           const w = row.word;
-          return w && typeof w === "object" ? (w as Record<string, unknown>) : null;
+          if (!w || typeof w !== "object" || Array.isArray(w)) return null;
+          return w as unknown as Record<string, unknown>;
         })
         .filter((w): w is Record<string, unknown> => Boolean(w));
       rows.push(...batch);
