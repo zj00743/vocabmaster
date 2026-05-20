@@ -1,65 +1,149 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { BookOpen, Flame, Target, Brain, TrendingUp } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { MyWordListCard } from "@/components/my-word-list-card";
+import { AppShell } from "@/components/app-shell";
+import type { DailyStats, WordWithProgress } from "@/lib/types";
+
+export default function DashboardPage() {
+  const [stats, setStats] = useState<DailyStats | null>(null);
+  const [recentWords, setRecentWords] = useState<WordWithProgress[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const [statsRes, wordsRes] = await Promise.all([
+          fetch("/api/stats"),
+          fetch("/api/words?in_my_words=1&limit=5&sort=added"),
+        ]);
+        if (statsRes.ok) setStats(await statsRes.json());
+        if (wordsRes.ok) {
+          const data = await wordsRes.json();
+          const fetched = Array.isArray(data) ? data : (data.data ?? data.words ?? []);
+          setRecentWords(fetched);
+        }
+      } catch {
+        // API not available yet
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, []);
+
+  const greeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good morning";
+    if (hour < 18) return "Good afternoon";
+    return "Good evening";
+  };
+
+  const today = new Date().toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  });
+
+  const statCards = [
+    {
+      label: "Due Today",
+      value: stats?.due_today ?? 0,
+      icon: Target,
+      color: "text-orange-500",
+    },
+    {
+      label: "Reviewed Today",
+      value: stats?.reviewed_today ?? 0,
+      icon: BookOpen,
+      color: "text-emerald-500",
+    },
+    {
+      label: "Total Learned",
+      value: stats?.total_learned ?? 0,
+      icon: Brain,
+      color: "text-blue-500",
+    },
+    {
+      label: "Retention",
+      value: `${stats?.retention_rate ?? 0}%`,
+      icon: TrendingUp,
+      color: "text-purple-500",
+    },
+  ];
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <AppShell>
+      <div className="px-4 py-6 md:px-8 md:py-8 max-w-2xl mx-auto w-full space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">{greeting()}</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">{today}</p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+
+        {(stats?.streak ?? 0) > 0 && (
+          <div className="flex items-center gap-2 text-orange-500">
+            <Flame className="size-5" />
+            <span className="font-semibold text-sm">
+              {stats!.streak} day streak
+            </span>
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 gap-3">
+          {statCards.map(({ label, value, icon: Icon, color }) => (
+            <Card key={label} size="sm">
+              <CardContent className="flex items-center gap-3">
+                <div className={`${color} shrink-0`}>
+                  <Icon className="size-5" />
+                </div>
+                <div>
+                  <p className="text-xl font-bold tabular-nums">{value}</p>
+                  <p className="text-xs text-muted-foreground">{label}</p>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
-      </main>
-    </div>
+
+        {(stats?.due_today ?? 0) > 0 && (
+          <Link href="/review">
+            <Button className="w-full h-12 text-base font-semibold">
+              <BookOpen className="size-5 mr-2" />
+              Start Review ({stats!.due_today} cards)
+            </Button>
+          </Link>
+        )}
+
+        {recentWords.length > 0 && (
+          <div className="space-y-3">
+            <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+              Recently Added
+            </h2>
+            <div className="space-y-3">
+              {recentWords.map((w) => (
+                <MyWordListCard key={w.id} word={w} />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {!loading && !stats && (
+          <div className="text-center py-12 space-y-3">
+            <Brain className="size-12 mx-auto text-muted-foreground/30" />
+            <h2 className="text-lg font-medium">Welcome to VocabMaster</h2>
+            <p className="text-sm text-muted-foreground max-w-xs mx-auto">
+              Start by searching and adding words to your collection.
+            </p>
+            <Link href="/search">
+              <Button variant="outline">Search Words</Button>
+            </Link>
+          </div>
+        )}
+      </div>
+    </AppShell>
   );
 }
