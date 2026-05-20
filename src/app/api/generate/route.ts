@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+/** Lazy init so `next build` does not require OPENAI_API_KEY at compile time. */
+function getOpenAI(): OpenAI {
+  const key = process.env.OPENAI_API_KEY?.trim();
+  if (!key) {
+    throw new Error("OPENAI_API_KEY is not set");
+  }
+  return new OpenAI({ apiKey: key });
+}
 
 function openAiErrorMessage(error: unknown): string | null {
   if (!error || typeof error !== "object") return null;
@@ -60,7 +65,7 @@ Return a JSON object with these exact fields:
 
 Respond ONLY with valid JSON, no markdown or extra text.`;
 
-    const completion = await openai.chat.completions.create({
+    const completion = await getOpenAI().chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
         {
