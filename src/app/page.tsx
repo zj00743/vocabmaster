@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { BookOpen, Flame, Target, Brain, TrendingUp } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,7 @@ import { AppShell } from "@/components/app-shell";
 import type { DailyStats, WordWithProgress } from "@/lib/types";
 
 export default function DashboardPage() {
+  const router = useRouter();
   const [stats, setStats] = useState<DailyStats | null>(null);
   const [recentWords, setRecentWords] = useState<WordWithProgress[]>([]);
   const [loading, setLoading] = useState(true);
@@ -110,7 +112,7 @@ export default function DashboardPage() {
         </div>
 
         {(stats?.due_today ?? 0) > 0 && (
-          <Link href="/review">
+          <Link href="/review" className="block">
             <Button className="w-full h-12 text-base font-semibold">
               <BookOpen className="size-5 mr-2" />
               Start Review ({stats!.due_today} cards)
@@ -119,13 +121,17 @@ export default function DashboardPage() {
         )}
 
         {recentWords.length > 0 && (
-          <div className="space-y-3">
+          <div className="space-y-3 pt-3">
             <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
               Recently Added
             </h2>
             <div className="space-y-3">
               {recentWords.map((w) => (
-                <MyWordListCard key={w.id} word={w} />
+                <MyWordListCard
+                  key={w.id}
+                  word={w}
+                  onClick={() => router.push(`/words/${w.id}`)}
+                />
               ))}
             </div>
           </div>

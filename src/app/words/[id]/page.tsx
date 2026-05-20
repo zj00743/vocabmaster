@@ -15,6 +15,7 @@ import { toast } from "sonner";
 
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Flashcard } from "@/components/flashcard";
 import { FsrsForgettingCurvePanel } from "@/components/fsrs-forgetting-curve";
 import type {
@@ -465,33 +466,53 @@ function WordEditorInner() {
         )}
 
         {!loading && previewWord && (
-          <>
-            <Flashcard
-              key={previewWord.id}
-              word={previewWord}
-              showAnswer={showAnswer}
-              onFlip={() => setShowAnswer((s) => !s)}
-              onRate={() => {
-                toast.info(
-                  "Rate cards from the Review tab to update FSRS scheduling."
-                );
-              }}
-              enriching={enriching}
-              onWordImageUpdate={(wid, url) => {
-                if (wid !== previewWord.id) return;
-                mergeImage(url);
-              }}
-              showRatingBar={false}
-              sectionEdit={sectionEdit}
-              relationListDraftText={{
-                synonyms: synonymsText,
-                antonyms: antonymsText,
-                collocations: collocationsText,
-              }}
-            />
+          <Tabs defaultValue="flashcard" className="w-full gap-4">
+            <TabsList className="w-full max-w-md">
+              <TabsTrigger value="flashcard" className="flex-1 font-sans">
+                Flash card
+              </TabsTrigger>
+              <TabsTrigger value="memory-curve" className="flex-1 font-sans">
+                Memory curve
+              </TabsTrigger>
+            </TabsList>
 
-            <FsrsForgettingCurvePanel progress={previewWord.progress} />
-          </>
+            <TabsContent value="flashcard" className="mt-0 outline-none">
+              <Flashcard
+                key={previewWord.id}
+                word={previewWord}
+                showAnswer={showAnswer}
+                onFlip={() => setShowAnswer((s) => !s)}
+                onRate={() => {
+                  toast.info(
+                    "Rate cards from the Review tab to update FSRS scheduling."
+                  );
+                }}
+                enriching={enriching}
+                onWordImageUpdate={(wid, url) => {
+                  if (wid !== previewWord.id) return;
+                  mergeImage(url);
+                }}
+                showRatingBar={false}
+                sectionEdit={sectionEdit}
+                relationListDraftText={{
+                  synonyms: synonymsText,
+                  antonyms: antonymsText,
+                  collocations: collocationsText,
+                }}
+              />
+            </TabsContent>
+
+            <TabsContent value="memory-curve" className="mt-0 outline-none">
+              {previewWord.progress ? (
+                <FsrsForgettingCurvePanel progress={previewWord.progress} />
+              ) : (
+                <p className="rounded-xl border bg-muted/30 px-4 py-8 text-center text-sm text-muted-foreground font-sans leading-relaxed">
+                  No review history yet. Rate this word in Review to build a
+                  memory curve.
+                </p>
+              )}
+            </TabsContent>
+          </Tabs>
         )}
       </div>
     </AppShell>

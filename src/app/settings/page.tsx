@@ -1,7 +1,14 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { Upload, Trash2, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
+import {
+  Upload,
+  Download,
+  Trash2,
+  CheckCircle2,
+  AlertCircle,
+  Loader2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -60,6 +67,25 @@ function parseCSV(content: string) {
   const posIdx = headers.findIndex(
     (h) => h.includes("pos") || h.includes("part")
   );
+  const catIdx = headers.findIndex((h) => h === "category");
+  const defIdx = headers.findIndex((h) => h.includes("definition"));
+  const zhIdx = headers.findIndex(
+    (h) => h.includes("translation") || h === "zh"
+  );
+  const ipaIdx = headers.findIndex((h) => h === "ipa");
+  const synIdx = headers.findIndex((h) => h.includes("synonym"));
+  const antIdx = headers.findIndex((h) => h.includes("antonym"));
+  const colIdx = headers.findIndex((h) => h.includes("collocation"));
+  const exIdx = headers.findIndex(
+    (h) => h.includes("example") || h.includes("sentence")
+  );
+  const customIdx = headers.findIndex((h) => h.includes("custom"));
+
+  const splitList = (raw: string | undefined) =>
+    (raw ?? "")
+      .split("|")
+      .map((s) => s.trim())
+      .filter(Boolean);
 
   if (wordIdx === -1) return [];
 
@@ -68,22 +94,30 @@ function parseCSV(content: string) {
     const cols = parseCsvLine(lines[i], delimiter);
     const word = cols[wordIdx]?.trim();
     if (!word) continue;
+    const rank =
+      rankIdx !== -1 ? parseInt(cols[rankIdx], 10) || null : null;
+    const isCustom =
+      customIdx !== -1
+        ? cols[customIdx]?.toLowerCase() === "true"
+        : false;
     rows.push({
       word: word.toLowerCase(),
-      definition: "",
-      translation_zh: "",
-      ipa: "",
-      rank: rankIdx !== -1 ? parseInt(cols[rankIdx], 10) || i : i,
+      definition: defIdx !== -1 ? (cols[defIdx] ?? "") : "",
+      translation_zh: zhIdx !== -1 ? (cols[zhIdx] ?? "") : "",
+      ipa: ipaIdx !== -1 ? (cols[ipaIdx] ?? "") : "",
+      rank,
       part_of_speech: posIdx !== -1 ? (cols[posIdx] || "").toLowerCase() : "",
       category:
-        rankIdx !== -1 && (parseInt(cols[rankIdx], 10) || i) <= 3000
-          ? "daily conversation"
-          : "academic",
-      is_custom: false,
-      example_sentences: [],
-      synonyms: [],
-      antonyms: [],
-      collocations: [],
+        catIdx !== -1
+          ? cols[catIdx] || null
+          : rank != null && rank <= 3000
+            ? "daily conversation"
+            : "academic",
+      is_custom: isCustom,
+      example_sentences: exIdx !== -1 ? splitList(cols[exIdx]) : [],
+      synonyms: synIdx !== -1 ? splitList(cols[synIdx]) : [],
+      antonyms: antIdx !== -1 ? splitList(cols[antIdx]) : [],
+      collocations: colIdx !== -1 ? splitList(cols[colIdx]) : [],
     });
   }
   return rows;
@@ -96,6 +130,9 @@ export default function SettingsPage() {
   const [clearing, setClearing] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [exporting, setExporting] = useState<
+    "all" | "corpus" | "my_words" | null
+  >(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -191,6 +228,39 @@ export default function SettingsPage() {
     }
   };
 
+  const handleDownloadCsv = async (
+    scope: "all" | "corpus" | "my_words"
+  ) => {
+    setExporting(scope);
+    try {
+      const res = await fetch(`/api/export/csv?scope=${scope}`, {
+        cache: "no-store",
+      });
+      if (!res.ok) {
+        const err = (await res.json().catch(() => null)) as {
+          error?: string;
+        } | null;
+        toast.error(err?.error ?? "Download failed");
+        return;
+      }
+      const blob = await res.blob();
+      const disposition = res.headers.get("Content-Disposition") ?? "";
+      const match = disposition.match(/filename="?([^";]+)"?/i);
+      const filename = match?.[1] ?? `vocab-${scope}.csv`;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("CSV downloaded");
+    } catch {
+      toast.error("Download failed");
+    } finally {
+      setExporting(null);
+    }
+  };
+
   const handleClearProgress = async () => {
     if (!confirmClear) {
       setConfirmClear(true);
@@ -276,32 +346,89 @@ export default function SettingsPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Import Data</CardTitle>
+            <CardTitle>Vocabulary CSV</CardTitle>
             <CardDescription>
-              Upload a CoCA word list CSV file
+              Import a CoCA-style list or download your vocabulary from the
+              database (same columns — you can edit and re-upload).
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
             <input
               ref={fileRef}
               type="file"
-              accept=".csv"
+              accept=".csv,.tsv,text/csv"
               onChange={handleImport}
               className="hidden"
             />
-            <Button
-              variant="outline"
-              onClick={() => fileRef.current?.click()}
-              disabled={importing}
-              className="gap-2"
-            >
-              {importing ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <Upload className="size-4" />
-              )}
-              {importing ? "Importing..." : "Upload CSV"}
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="outline"
+                onClick={() => fileRef.current?.click()}
+                disabled={importing || exporting !== null}
+                className="gap-2"
+              >
+                {importing ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Upload className="size-4" />
+                )}
+                {importing ? "Importing..." : "Upload CSV"}
+              </Button>
+            </div>
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                Download
+              </p>
+              <div className="flex flex-col sm:flex-row flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2 justify-start"
+                  disabled={importing || exporting !== null}
+                  onClick={() => void handleDownloadCsv("corpus")}
+                >
+                  {exporting === "corpus" ? (
+                    <Loader2 className="size-4 animate-spin shrink-0" />
+                  ) : (
+                    <Download className="size-4 shrink-0" />
+                  )}
+                  CoCA corpus
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2 justify-start"
+                  disabled={importing || exporting !== null}
+                  onClick={() => void handleDownloadCsv("my_words")}
+                >
+                  {exporting === "my_words" ? (
+                    <Loader2 className="size-4 animate-spin shrink-0" />
+                  ) : (
+                    <Download className="size-4 shrink-0" />
+                  )}
+                  My Words
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2 justify-start"
+                  disabled={importing || exporting !== null}
+                  onClick={() => void handleDownloadCsv("all")}
+                >
+                  {exporting === "all" ? (
+                    <Loader2 className="size-4 animate-spin shrink-0" />
+                  ) : (
+                    <Download className="size-4 shrink-0" />
+                  )}
+                  All vocabulary
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Columns: rank, word, part_of_speech, category, definition,
+                translation_zh, ipa, and more. Lists use{" "}
+                <span className="font-mono">|</span> between items.
+              </p>
+            </div>
           </CardContent>
         </Card>
 

@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
         image_prompt: w.image_prompt || null,
         mnemonic: w.mnemonic || null,
         category: w.category || null,
-        is_custom: false,
+        is_custom: Boolean(w.is_custom),
       }));
 
       const { error } = await supabase

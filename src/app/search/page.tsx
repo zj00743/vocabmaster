@@ -20,7 +20,7 @@ import {
   type CustomWordDraftSeed,
 } from "@/components/custom-word-draft-dialog";
 import { toast } from "sonner";
-import type { LearningProgress, Rating, Word, WordWithProgress } from "@/lib/types";
+import type { LearningProgress, Word, WordWithProgress } from "@/lib/types";
 import { normalizeWord } from "@/lib/word-utils";
 import { needsAutoEnrich } from "@/lib/enrich-utils";
 
@@ -283,30 +283,6 @@ export default function SearchPage() {
     }
   };
 
-  const handleFlashcardRate = async (rating: Rating) => {
-    const w = flashcardWord;
-    if (!w) return;
-    try {
-      const res = await fetch("/api/review/submit", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          word_id: w.id,
-          rating,
-          response_time: 0,
-        }),
-      });
-      if (!res.ok) {
-        toast.error("Could not save review");
-        return;
-      }
-      setShowAnswer(false);
-      toast.success("Review saved");
-    } catch {
-      toast.error("Could not save review");
-    }
-  };
-
   const isSaving = (w: Word) => savingKey === (w.id ?? w.word);
   const isSaved = (w: SearchResult) => {
     if (w.id && savedIds.has(w.id)) return true;
@@ -523,7 +499,8 @@ export default function SearchPage() {
               word={flashcardWord}
               showAnswer={showAnswer}
               onFlip={() => setShowAnswer((s) => !s)}
-              onRate={handleFlashcardRate}
+              onRate={() => undefined}
+              showRatingBar={false}
               enriching={enrichingId === flashcardWord.id}
               onWordImageUpdate={(wordId, imageUrl) => {
                 setFlashcardWord((prev) =>
