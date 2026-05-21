@@ -14,9 +14,11 @@ import { WordImageUrlForm } from "@/components/word-image-url-form";
 import { playPronunciation } from "@/lib/pronunciation";
 import { externalDictionaryResources } from "@/lib/dictionary-links";
 import type {
+  WordCardBrowseEditProps,
   WordCardSectionEditProps,
   WordCardEditSectionId,
 } from "@/lib/word-card-edit-types";
+import { SectionEditLink } from "@/components/section-edit-link";
 import {
   SectionEditActions,
   sectionEditBlocked,
@@ -166,6 +168,7 @@ function FlashcardEditableListSection({
   field,
   items,
   sect,
+  browseEdit,
   placeholder,
   emptyBrowse,
   draftText,
@@ -176,12 +179,13 @@ function FlashcardEditableListSection({
   field: "synonyms" | "antonyms" | "collocations";
   items: string[];
   sect?: WordCardSectionEditProps;
+  browseEdit?: WordCardBrowseEditProps;
   placeholder: string;
   emptyBrowse: string;
   draftText?: string;
   initialLimit: number;
 }) {
-  if (!sect) {
+  if (!sect && !browseEdit) {
     if (items.length === 0) return null;
     return (
       <FlashcardSection title={title}>
@@ -195,24 +199,24 @@ function FlashcardEditableListSection({
     );
   }
 
+  const editAction = browseEdit ? (
+    <SectionEditLink wordId={browseEdit.wordId} sectionId={sectionId} />
+  ) : sect ? (
+    <SectionEditActions
+      isEditing={sect.editingSectionId === sectionId}
+      disabledStart={sectionEditBlocked(sect.editingSectionId, sectionId)}
+      saving={sect.sectionSaving}
+      onEdit={() => sect.onStartSectionEdit(sectionId)}
+      onCancel={() => sect.onCancelSectionEdit()}
+      onSave={() => sect.onSaveTextSection(sectionId)}
+    />
+  ) : null;
+
+  const isInlineEditing = !!sect && sect.editingSectionId === sectionId;
+
   return (
-    <FlashcardSection
-      title={title}
-      action={
-        <SectionEditActions
-          isEditing={sect.editingSectionId === sectionId}
-          disabledStart={sectionEditBlocked(
-            sect.editingSectionId,
-            sectionId
-          )}
-          saving={sect.sectionSaving}
-          onEdit={() => sect.onStartSectionEdit(sectionId)}
-          onCancel={() => sect.onCancelSectionEdit()}
-          onSave={() => sect.onSaveTextSection(sectionId)}
-        />
-      }
-    >
-      {sect.editingSectionId === sectionId ? (
+    <FlashcardSection title={title} action={editAction}>
+      {isInlineEditing ? (
         <label className="flex flex-col gap-1.5 text-xs font-sans text-muted-foreground">
           One phrase per line
           <textarea
@@ -266,8 +270,10 @@ interface WordDetailBodyProps {
     antonyms: string;
     collocations: string;
   };
-  /** Word detail: staged section edits (pencil / save-cancel per block) */
+  /** Draft dialog: inline staged edits */
   sectionEdit?: WordCardSectionEditProps;
+  /** My Words: pencil navigates to section edit page */
+  browseEdit?: WordCardBrowseEditProps;
 }
 
 export function WordDetailBody({
@@ -278,13 +284,15 @@ export function WordDetailBody({
   dictionaryHintFallback,
   onImageUpdate,
   sectionEdit,
+  browseEdit,
   relationListDraftText,
 }: WordDetailBodyProps) {
   const word = normalizeWord(raw);
   const isPhrase = isPhraseEntry(word.word);
   const youglish = `https://youglish.com/pronounce/${encodeURIComponent(word.word)}/english`;
   const fc = variant === "flashcard";
-  const sect = fc ? sectionEdit : undefined;
+  const sect = fc && sectionEdit ? sectionEdit : undefined;
+  const browse = fc && browseEdit ? browseEdit : undefined;
   const [definitionLang, setDefinitionLang] = useState<"en" | "zh">("en");
 
   useEffect(() => {
@@ -361,57 +369,55 @@ export function WordDetailBody({
 
       {fc ? (
         <>
-          <div className="-mx-6 sm:-mx-8 rounded-xl bg-muted/35 px-6 sm:px-8 py-5 space-y-3.5">
-          {sect ? (
-            <div className="flex justify-end -mt-0.5 mb-1">
-              <SectionEditActions
-                isEditing={sect.editingSectionId === "back_header"}
-                disabledStart={sectionEditBlocked(
-                  sect.editingSectionId,
-                  "back_header"
-                )}
-                saving={sect.sectionSaving}
-                onEdit={() => sect.onStartSectionEdit("back_header")}
-                onCancel={() => sect.onCancelSectionEdit()}
-                onSave={() => sect.onSaveTextSection("back_header")}
-              />
-            </div>
-          ) : null}
+          <div className="space-y-3.5 pb-5">
           {sect && sect.editingSectionId === "back_header" ? (
             <>
-              <div className="flex flex-wrap items-end gap-x-3 gap-y-2 min-w-0 sm:text-left">
-                {word.is_custom ? (
-                  <label className="flex min-w-[12rem] flex-1 flex-col gap-1.5 text-xs text-muted-foreground font-sans">
-                    Word
-                    <Input
-                      value={word.word}
-                      onChange={(e) =>
-                        sect.onSectionFieldChange("lemma", e.target.value)
-                      }
-                      className="text-3xl sm:text-[2rem] font-bold tracking-tight h-auto py-2 font-sans"
-                    />
-                  </label>
-                ) : (
-                  <h2 className="text-3xl sm:text-[2rem] font-bold tracking-tight font-sans break-words leading-tight">
-                    {word.word}
-                  </h2>
-                )}
-                {!isPhrase ? (
-                  <label className="flex w-[7.5rem] flex-col gap-1.5 text-xs text-muted-foreground font-sans shrink-0">
-                    POS
-                    <Input
-                      value={word.part_of_speech ?? ""}
-                      onChange={(e) =>
-                        sect.onSectionFieldChange(
-                          "part_of_speech",
-                          e.target.value
-                        )
-                      }
-                      className="capitalize font-sans text-sm h-10"
-                      placeholder="noun"
-                    />
-                  </label>
-                ) : null}
+              <div className="flex items-center justify-between gap-3 min-w-0">
+                <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-2 sm:text-left">
+                  {word.is_custom ? (
+                    <label className="flex min-w-[12rem] flex-1 flex-col gap-1.5 text-xs text-muted-foreground font-sans">
+                      Word
+                      <Input
+                        value={word.word}
+                        onChange={(e) =>
+                          sect.onSectionFieldChange("lemma", e.target.value)
+                        }
+                        className="text-3xl sm:text-[2rem] font-bold tracking-tight h-auto py-2 font-sans"
+                      />
+                    </label>
+                  ) : (
+                    <h2 className="text-3xl sm:text-[2rem] font-bold tracking-tight font-sans break-words leading-tight">
+                      {word.word}
+                    </h2>
+                  )}
+                  {!isPhrase ? (
+                    <label className="flex w-[7.5rem] flex-col gap-1.5 text-xs text-muted-foreground font-sans shrink-0">
+                      POS
+                      <Input
+                        value={word.part_of_speech ?? ""}
+                        onChange={(e) =>
+                          sect.onSectionFieldChange(
+                            "part_of_speech",
+                            e.target.value
+                          )
+                        }
+                        className="capitalize font-sans text-sm h-10"
+                        placeholder="noun"
+                      />
+                    </label>
+                  ) : null}
+                </div>
+                <SectionEditActions
+                  isEditing={sect.editingSectionId === "back_header"}
+                  disabledStart={sectionEditBlocked(
+                    sect.editingSectionId,
+                    "back_header"
+                  )}
+                  saving={sect.sectionSaving}
+                  onEdit={() => sect.onStartSectionEdit("back_header")}
+                  onCancel={() => sect.onCancelSectionEdit()}
+                  onSave={() => sect.onSaveTextSection("back_header")}
+                />
               </div>
 
               <div className="flex flex-wrap items-center gap-x-3 gap-y-2 sm:justify-start">
@@ -474,17 +480,25 @@ export function WordDetailBody({
             </>
           ) : (
             <>
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 min-w-0 sm:text-left">
-            <h2 className="text-3xl sm:text-[2rem] font-bold tracking-tight font-sans break-words leading-tight">
-              {word.word}
-            </h2>
-            {!isPhrase && word.part_of_speech?.trim() ? (
-              <Badge
-                variant="outline"
-                className="text-sm px-3 py-0.5 font-sans shrink-0 capitalize"
-              >
-                {word.part_of_speech}
-              </Badge>
+          <div className="flex items-center justify-between gap-3 min-w-0">
+            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1.5 sm:text-left">
+              <h2 className="text-3xl sm:text-[2rem] font-bold tracking-tight font-sans break-words leading-tight">
+                {word.word}
+              </h2>
+              {!isPhrase && word.part_of_speech?.trim() ? (
+                <Badge
+                  variant="outline"
+                  className="text-sm px-3 py-0.5 font-sans shrink-0 capitalize"
+                >
+                  {word.part_of_speech}
+                </Badge>
+              ) : null}
+            </div>
+            {browse ? (
+              <SectionEditLink
+                wordId={browse.wordId}
+                sectionId="back_header"
+              />
             ) : null}
           </div>
 
@@ -538,13 +552,13 @@ export function WordDetailBody({
           )}
           </div>
 
-          <div className="divide-y divide-border/60">
+          <div className="border-t border-border/60 divide-y divide-border/60">
             <FlashcardSection
               title="Definition"
               action={
-                sect ? (
+                sect || browse ? (
                   <div className="flex flex-wrap items-center justify-end gap-2 shrink-0">
-                    {sect.editingSectionId !== "back_definition" ? (
+                    {(!sect || sect.editingSectionId !== "back_definition") && (
                       <div className="inline-flex rounded-md border border-border/60 bg-muted/25 p-0.5 font-sans shrink-0">
                         <Button
                           type="button"
@@ -569,22 +583,29 @@ export function WordDetailBody({
                           中文
                         </Button>
                       </div>
-                    ) : null}
-                    <SectionEditActions
-                      isEditing={sect.editingSectionId === "back_definition"}
-                      disabledStart={sectionEditBlocked(
-                        sect.editingSectionId,
-                        "back_definition"
-                      )}
-                      saving={sect.sectionSaving}
-                      onEdit={() =>
-                        sect.onStartSectionEdit("back_definition")
-                      }
-                      onCancel={() => sect.onCancelSectionEdit()}
-                      onSave={() =>
-                        sect.onSaveTextSection("back_definition")
-                      }
-                    />
+                    )}
+                    {browse ? (
+                      <SectionEditLink
+                        wordId={browse.wordId}
+                        definitionLang={definitionLang}
+                      />
+                    ) : (
+                      <SectionEditActions
+                        isEditing={sect!.editingSectionId === "back_definition"}
+                        disabledStart={sectionEditBlocked(
+                          sect!.editingSectionId,
+                          "back_definition"
+                        )}
+                        saving={sect!.sectionSaving}
+                        onEdit={() =>
+                          sect!.onStartSectionEdit("back_definition")
+                        }
+                        onCancel={() => sect!.onCancelSectionEdit()}
+                        onSave={() =>
+                          sect!.onSaveTextSection("back_definition")
+                        }
+                      />
+                    )}
                   </div>
                 ) : (
                 <div className="inline-flex rounded-md border border-border/60 bg-muted/25 p-0.5 font-sans shrink-0">
@@ -728,6 +749,7 @@ export function WordDetailBody({
               field="synonyms"
               items={word.synonyms}
               sect={sect}
+              browseEdit={browse}
               placeholder="e.g. happy, cheerful"
               emptyBrowse="No synonyms yet · tap pencil to add"
               draftText={relationListDraftText?.synonyms}
@@ -740,6 +762,7 @@ export function WordDetailBody({
               field="antonyms"
               items={word.antonyms}
               sect={sect}
+              browseEdit={browse}
               placeholder="e.g. sad, bleak"
               emptyBrowse="No antonyms yet · tap pencil to add"
               draftText={relationListDraftText?.antonyms}
@@ -752,32 +775,38 @@ export function WordDetailBody({
               field="collocations"
               items={word.collocations}
               sect={sect}
+              browseEdit={browse}
               placeholder="e.g. make a decision, strong wind"
               emptyBrowse="No collocations yet · tap pencil to add"
               draftText={relationListDraftText?.collocations}
               initialLimit={5}
             />
 
-            {sect ? (
+            {sect || browse ? (
               <FlashcardSection
                 title="Example sentences"
                 action={
-                  <SectionEditActions
-                    isEditing={sect.editingSectionId === "back_examples"}
-                    disabledStart={sectionEditBlocked(
-                      sect.editingSectionId,
-                      "back_examples"
-                    )}
-                    saving={sect.sectionSaving}
-                    onEdit={() => sect.onStartSectionEdit("back_examples")}
-                    onCancel={() => sect.onCancelSectionEdit()}
-                    onSave={() =>
-                      sect.onSaveTextSection("back_examples")
-                    }
-                  />
+                  browse ? (
+                    <SectionEditLink
+                      wordId={browse.wordId}
+                      sectionId="back_examples"
+                    />
+                  ) : (
+                    <SectionEditActions
+                      isEditing={sect!.editingSectionId === "back_examples"}
+                      disabledStart={sectionEditBlocked(
+                        sect!.editingSectionId,
+                        "back_examples"
+                      )}
+                      saving={sect!.sectionSaving}
+                      onEdit={() => sect!.onStartSectionEdit("back_examples")}
+                      onCancel={() => sect!.onCancelSectionEdit()}
+                      onSave={() => sect!.onSaveTextSection("back_examples")}
+                    />
+                  )
                 }
               >
-                {sect.editingSectionId === "back_examples" ? (
+                {sect && sect.editingSectionId === "back_examples" ? (
                   <label className="flex flex-col gap-1.5 text-xs font-sans text-muted-foreground">
                     One per line
                     <textarea

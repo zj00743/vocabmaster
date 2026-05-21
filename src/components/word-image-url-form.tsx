@@ -30,10 +30,11 @@ type WordImageUrlFormProps = {
   onSaved: (nextUrl: string | null) => void;
   compact?: boolean;
   /**
-   * When true, paste/drop/apply/clear only update local staging; call `commit()`
-   * via ref to PATCH. Used inside “edit image” modals.
+   * When true, paste/drop/clear stage locally; `commit()` PATCHes (Save applies URL).
    */
   deferSave?: boolean;
+  /** Full-page editor: no outer border, larger type. */
+  fullPage?: boolean;
 };
 
 function syncFieldsFromImageUrl(
@@ -54,9 +55,10 @@ export const WordImageUrlForm = forwardRef<
   WordImageUrlFormHandle,
   WordImageUrlFormProps
 >(function WordImageUrlForm(
-  { wordId, imageUrl, onSaved, compact, deferSave = false },
+  { wordId, imageUrl, onSaved, compact, deferSave = false, fullPage = false },
   ref
 ) {
+  const large = fullPage || (!compact && deferSave);
   const [value, setValue] = useState(() => syncFieldsFromImageUrl(imageUrl, deferSave).value);
   const [stagedImageUrl, setStagedImageUrl] = useState(
     () => syncFieldsFromImageUrl(imageUrl, deferSave).staged
@@ -104,18 +106,38 @@ export const WordImageUrlForm = forwardRef<
     [wordId, onSaved]
   );
 
+  const resolvePayloadUrl = useCallback((): {
+    ok: true;
+    value: string;
+  } | {
+    ok: false;
+    error: string;
+  } => {
+    const urlInput = value.trim();
+    const base = urlInput || stagedImageUrl;
+    const normalized = normalizeImageUrlForStorage(base);
+    if (!normalized.ok) {
+      return { ok: false, error: normalized.error };
+    }
+    return { ok: true, value: normalized.value ?? "" };
+  }, [value, stagedImageUrl]);
+
   const commit = useCallback(async (): Promise<boolean> => {
     if (!deferSave) return false;
-    const normalized = normalizeImageUrlForStorage(stagedImageUrl);
-    if (!normalized.ok) {
-      toast.error(normalized.error);
+    const resolved = resolvePayloadUrl();
+    if (!resolved.ok) {
+      toast.error(resolved.error);
+      return false;
+    }
+    if (!resolved.value && !value.trim() && !stagedImageUrl.trim()) {
+      toast.info("Paste an image, enter a URL, or use Clear.");
       return false;
     }
     setSaving(true);
     try {
-      const ok = await patchImageUrl({ image_url: normalized.value });
+      const ok = await patchImageUrl({ image_url: resolved.value || null });
       if (ok) {
-        const iu = normalized.value ?? "";
+        const iu = resolved.value ?? "";
         setStagedImageUrl(iu);
         setValue(iu.startsWith("http") ? iu : "");
       }
@@ -123,7 +145,7 @@ export const WordImageUrlForm = forwardRef<
     } finally {
       setSaving(false);
     }
-  }, [deferSave, stagedImageUrl, patchImageUrl]);
+  }, [deferSave, resolvePayloadUrl, value, stagedImageUrl, patchImageUrl]);
 
   useImperativeHandle(ref, () => ({ commit }), [commit]);
 
@@ -258,29 +280,36 @@ export const WordImageUrlForm = forwardRef<
       ? !stagedImageUrl?.trim() && !value.trim()
       : !imageUrl?.trim());
 
-  const previewSrc = deferSave ? stagedImageUrl.trim() : "";
+  const previewSrc = deferSave
+    ? stagedImageUrl.trim() ||
+      (value.trim().startsWith("http") ? value.trim() : "")
+    : "";
 
   return (
     <div
       className={cn(
-        "rounded-lg border bg-muted/20 p-3 space-y-3",
-        compact && "p-2.5 space-y-2.5"
+        "space-y-3 font-sans",
+        fullPage ? "w-full space-y-5" : "rounded-lg border bg-muted/20 p-3",
+        compact && !fullPage && "p-2.5 space-y-2.5"
       )}
     >
-      <p
-        className={cn(
-          "font-medium text-muted-foreground uppercase tracking-wider",
-          compact ? "text-xs" : "text-sm"
-        )}
-      >
-        Card image
-      </p>
+      {!fullPage ? (
+        <p
+          className={cn(
+            "font-medium text-muted-foreground uppercase tracking-wider",
+            compact ? "text-xs" : "text-sm"
+          )}
+        >
+          Card image
+        </p>
+      ) : null}
 
       {deferSave && previewSrc ? (
         <div
           className={cn(
-            "rounded-lg border bg-muted/30 overflow-hidden aspect-[16/9] flex items-center justify-center max-h-40",
-            compact && "max-h-36"
+            "overflow-hidden aspect-[16/9] flex items-center justify-center bg-muted/30",
+            fullPage ? "max-h-56 rounded-lg" : "rounded-lg border max-h-40",
+            compact && !fullPage && "max-h-36"
           )}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -299,67 +328,81 @@ export const WordImageUrlForm = forwardRef<
           e.stopPropagation();
         }}
         className={cn(
-          "rounded-md border border-dashed border-muted-foreground/35 bg-background/80 px-3 py-4 text-center outline-none transition-colors",
-          "hover:bg-muted/30 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+          "rounded-md border border-dashed border-muted-foreground/35 bg-muted/20 px-3 py-4 text-center outline-none transition-colors",
+          "hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
           saving && "pointer-events-none opacity-60",
-          compact ? "py-3" : "py-5"
+          large ? "py-8" : compact ? "py-3" : "py-5"
         )}
       >
         <ImagePlus
           className={cn(
             "mx-auto text-muted-foreground/60 mb-2",
-            compact ? "size-8" : "size-10"
+            large ? "size-12" : compact ? "size-8" : "size-10"
           )}
           aria-hidden
         />
         <p
           className={cn(
             "font-medium text-foreground",
-            compact ? "text-xs" : "text-sm"
+            large ? "text-base" : compact ? "text-xs" : "text-sm"
           )}
         >
           Paste a screenshot here
         </p>
         <p
           className={cn(
-            "text-muted-foreground mt-1",
-            compact ? "text-[11px]" : "text-xs"
+            "text-muted-foreground mt-2 leading-relaxed",
+            large ? "text-sm" : compact ? "text-[11px]" : "text-xs"
           )}
         >
           Click this box, then{" "}
-          <kbd className="rounded border bg-muted px-1 py-0.5 font-mono text-[10px]">
+          <kbd
+            className={cn(
+              "rounded border bg-muted px-1.5 py-0.5 font-mono",
+              large ? "text-xs" : "text-[10px]"
+            )}
+          >
             Ctrl+V
           </kbd>{" "}
           /{" "}
-          <kbd className="rounded border bg-muted px-1 py-0.5 font-mono text-[10px]">
+          <kbd
+            className={cn(
+              "rounded border bg-muted px-1.5 py-0.5 font-mono",
+              large ? "text-xs" : "text-[10px]"
+            )}
+          >
             ⌘V
           </kbd>
-          . You can also drag an image file onto this area. No long URL needed.
+          . You can also drag an image file here.
         </p>
       </div>
 
-      <div className="space-y-1.5">
+      <div className="space-y-2">
         <p
           className={cn(
-            "text-muted-foreground",
-            compact ? "text-[11px]" : "text-xs"
+            "text-muted-foreground leading-snug",
+            large ? "text-sm" : compact ? "text-[11px]" : "text-xs"
           )}
         >
-          Optional: image link (paste in the field only if you have a short https
-          URL)
+          {deferSave
+            ? "Optional image link — applied when you tap Save"
+            : "Optional: image link (short https URL)"}
         </p>
-        <div className="flex flex-col sm:flex-row gap-2">
-          <Input
-            type="url"
-            inputMode="url"
-            placeholder="https://…"
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-            disabled={saving}
-            className={cn("font-sans", compact ? "text-sm h-10" : "text-sm")}
-            autoComplete="off"
-          />
-          <div className="flex gap-2 shrink-0">
+        <Input
+          type="url"
+          inputMode="url"
+          placeholder="https://…"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          disabled={saving}
+          className={cn(
+            "font-sans w-full",
+            large ? "h-11 text-base" : compact ? "text-sm h-10" : "text-sm h-10"
+          )}
+          autoComplete="off"
+        />
+        <div className="flex gap-2">
+          {!deferSave ? (
             <Button
               type="button"
               size={compact ? "sm" : "default"}
@@ -368,20 +411,21 @@ export const WordImageUrlForm = forwardRef<
             >
               Apply URL
             </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size={compact ? "sm" : "default"}
-              disabled={clearDisabled}
-              onClick={() => void handleClear()}
-            >
-              Clear
-            </Button>
-          </div>
+          ) : null}
+          <Button
+            type="button"
+            variant="outline"
+            size={large ? "default" : compact ? "sm" : "default"}
+            className={cn(deferSave && "min-w-[5.5rem]")}
+            disabled={clearDisabled}
+            onClick={() => void handleClear()}
+          >
+            Clear
+          </Button>
         </div>
       </div>
-      {deferSave ? (
-        <p className="text-[11px] text-muted-foreground">
+      {deferSave && !fullPage ? (
+        <p className="text-xs text-muted-foreground">
           Tap <span className="font-medium text-foreground">Save</span> below to keep
           changes, or <span className="font-medium text-foreground">Cancel</span> to
           discard.

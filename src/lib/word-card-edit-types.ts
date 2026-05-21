@@ -34,3 +34,8 @@ export type WordCardSectionEditProps = {
   onSaveTextSection: (id: WordCardTextSectionId) => Promise<void>;
   onSectionFieldChange: FlashcardInlineEditHandler;
 };
+
+/** My Words browse: pencil opens a dedicated edit page per section. */
+export type WordCardBrowseEditProps = {
+  wordId: string;
+};

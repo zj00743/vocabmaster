@@ -91,7 +91,7 @@ export function FsrsForgettingCurvePanel({
   if (!progress || !model) return null;
 
   const W = 320;
-  const H = 118;
+  const H = 168;
   const padL = 36;
   const padR = 10;
   const padT = 10;
@@ -129,13 +129,13 @@ export function FsrsForgettingCurvePanel({
   return (
     <section
       className={cn(
-        "rounded-xl border bg-muted/25 px-3 py-3 sm:px-4",
+        "w-full font-sans px-4 py-4 sm:px-6 sm:py-5",
         className
       )}
       aria-label="FSRS forgetting curve"
     >
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 mb-2">
-        <h3 className="text-sm font-semibold tracking-tight">
+        <h3 className="text-base font-semibold tracking-tight">
           Memory curve (FSRS)
         </h3>
         <p className="text-[11px] text-muted-foreground tabular-nums">

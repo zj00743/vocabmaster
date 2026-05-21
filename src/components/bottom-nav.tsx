@@ -20,6 +20,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
+import { isWordSectionEditPath } from "@/lib/word-section-meta";
 
 const tabs = [
   { href: "/", label: "Home", icon: LayoutDashboard },
@@ -44,6 +45,10 @@ export function BottomNav() {
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
   const isMoreActive = morePaths.some((href) => pathname.startsWith(href));
+
+  if (isWordSectionEditPath(pathname)) {
+    return null;
+  }
 
   return (
     <>

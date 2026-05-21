@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
-import { ArrowLeft, CheckCircle2 } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { AppShell } from "@/components/app-shell";
@@ -171,32 +171,26 @@ export default function ReviewPage() {
 
   return (
     <AppShell>
-      <div className="flex min-h-0 flex-1 flex-col">
-      <div className="sticky top-0 z-30 w-full bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-        <div className="mx-auto w-full max-w-3xl px-4 pt-2 pb-2 md:px-8">
-          <div className="mb-1.5 flex items-center justify-between gap-2">
-            <Link href="/">
-              <Button variant="ghost" size="sm" className="h-8 gap-1.5 px-2">
-                <ArrowLeft className="size-4" />
-                Back
-              </Button>
-            </Link>
-            {total > 0 && !finished && (
-              <span className="text-xs text-muted-foreground tabular-nums">
-                {currentIndex + 1} / {total}
-              </span>
+      <div className="flex h-dvh max-h-dvh min-h-0 flex-1 flex-col overflow-hidden md:h-auto md:max-h-none">
+        <header className="shrink-0 border-b bg-background/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80 md:px-8">
+          <div className="mx-auto flex w-full max-w-3xl items-center gap-3">
+            {total > 0 && !finished ? (
+              <>
+                <Progress
+                  value={progressValue}
+                  className="min-w-0 flex-1 gap-0 [&_[data-slot=progress-track]]:h-1.5"
+                />
+                <span className="shrink-0 text-xs font-medium text-muted-foreground tabular-nums">
+                  {currentIndex + 1} / {total}
+                </span>
+              </>
+            ) : (
+              <span className="text-sm text-muted-foreground">Review</span>
             )}
           </div>
-          {total > 0 && (
-            <Progress
-              value={progressValue}
-              className="gap-0 [&_[data-slot=progress-track]]:h-0.5"
-            />
-          )}
-        </div>
-      </div>
+        </header>
 
-      <div className="mx-auto flex w-full max-w-3xl min-h-0 flex-1 flex-col overflow-hidden px-4 py-3 md:px-8 md:py-4">
+        <div className="mx-auto flex w-full max-w-3xl min-h-0 flex-1 flex-col overflow-hidden px-4 py-3 pb-[var(--review-card-pad-bottom)] md:px-8 md:py-4 md:pb-4 [--review-card-pad-bottom:var(--review-card-pad)] [--review-card-pad:calc(7.25rem+0.375rem+env(safe-area-inset-bottom,0px))]">
         {loading && (
           <div className="flex items-center justify-center py-16">
             <div className="animate-pulse text-muted-foreground">
@@ -206,7 +200,7 @@ export default function ReviewPage() {
         )}
 
         {!loading && !finished && currentWord && (
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <div className="mb-1.5 flex min-h-0 flex-1 flex-col overflow-hidden">
             <Flashcard
               key={currentWord.id}
               word={currentWord}
@@ -244,9 +238,9 @@ export default function ReviewPage() {
         )}
       </div>
 
-      {!loading && !finished && currentWord && (
-        <FlashcardRatingActions onRate={handleRate} />
-      )}
+        {!loading && !finished && currentWord && (
+          <FlashcardRatingActions onRate={handleRate} />
+        )}
       </div>
     </AppShell>
   );
