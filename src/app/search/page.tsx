@@ -1,9 +1,18 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { Search as SearchIcon, Sparkles, Plus, Loader2, Check } from "lucide-react";
+import {
+  Search as SearchIcon,
+  Sparkles,
+  Plus,
+  Loader2,
+  Check,
+  Mic,
+} from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { useSpeechRecognition } from "@/lib/use-speech-recognition";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
@@ -51,6 +60,36 @@ export default function SearchPage() {
   const [enrichingId, setEnrichingId] = useState<string | null>(null);
   const [draftOpen, setDraftOpen] = useState(false);
   const [draftSeed, setDraftSeed] = useState<CustomWordDraftSeed | null>(null);
+
+  const handleVoiceResult = useCallback((transcript: string) => {
+    /* Spoken words tend to come back capitalized/punctuated; normalize for search. */
+    const cleaned = transcript
+      .replace(/[.,!?;:]+$/g, "")
+      .trim()
+      .toLowerCase();
+    if (cleaned) setQuery(cleaned);
+  }, []);
+
+  const handleVoiceInterim = useCallback((transcript: string) => {
+    const cleaned = transcript.replace(/[.,!?;:]+$/g, "").trim().toLowerCase();
+    if (cleaned) setQuery(cleaned);
+  }, []);
+
+  const {
+    supported: voiceSupported,
+    listening,
+    toggle: toggleVoice,
+  } = useSpeechRecognition({
+    onResult: handleVoiceResult,
+    onInterim: handleVoiceInterim,
+    onError: (err) => {
+      if (err === "not-allowed" || err === "service-not-allowed") {
+        toast.error("Microphone access was blocked. Enable it to use voice input.");
+      } else if (err !== "aborted" && err !== "no-speech") {
+        toast.error("Voice input failed. Try again.");
+      }
+    },
+  });
 
   const search = useCallback(async (q: string) => {
     if (!q.trim()) {
@@ -299,9 +338,30 @@ export default function SearchPage() {
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search for a word or phrase…"
-            className="pl-10 h-12 text-base"
+            placeholder={
+              listening ? "Listening…" : "Search for a word or phrase…"
+            }
+            className={cn("pl-10 h-12 text-base", voiceSupported && "pr-12")}
           />
+          {voiceSupported && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={toggleVoice}
+              aria-label={listening ? "Stop voice input" : "Add word by voice"}
+              aria-pressed={listening}
+              className={cn(
+                "absolute right-1.5 top-1/2 size-9 -translate-y-1/2 rounded-full text-muted-foreground hover:text-foreground",
+                listening &&
+                  "bg-red-500/10 text-red-500 hover:text-red-600 hover:bg-red-500/15"
+              )}
+            >
+              <Mic
+                className={cn("size-5", listening && "animate-pulse")}
+              />
+            </Button>
+          )}
         </div>
 
         {searching && (
