@@ -372,27 +372,29 @@ export function Flashcard({
                 {word.part_of_speech}
               </Badge>
             ) : null}
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              className="font-sans shrink-0 size-10"
-              disabled={!canListen}
-              aria-label="Listen to pronunciation"
-              title={
-                !canListen
-                  ? "Pronunciation not available"
-                  : word.pronunciation_url?.trim()
-                    ? "Play dictionary audio"
-                    : "Play pronunciation"
-              }
-              onClick={(e) => {
-                e.stopPropagation();
-                playPronunciation(word);
-              }}
-            >
-              <Volume2 className="size-4 shrink-0" aria-hidden />
-            </Button>
+            {!isPhrase && (
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="font-sans shrink-0 size-10"
+                disabled={!canListen}
+                aria-label="Listen to pronunciation"
+                title={
+                  !canListen
+                    ? "Pronunciation not available"
+                    : word.pronunciation_url?.trim()
+                      ? "Play dictionary audio"
+                      : "Play pronunciation"
+                }
+                onClick={(e) => {
+                  e.stopPropagation();
+                  playPronunciation(word);
+                }}
+              >
+                <Volume2 className="size-4 shrink-0" aria-hidden />
+              </Button>
+            )}
           </div>
           <div className="flex flex-wrap items-center justify-center gap-3 w-full max-w-xl">
             {wordVisible ? (

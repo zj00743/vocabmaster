@@ -9,6 +9,7 @@ import {
   pollinationsImageUrl,
 } from "@/lib/card-image";
 import { mymemoryTranslateToZh } from "@/lib/mymemory-translate";
+import { isPhraseEntry } from "@/lib/word-entry";
 
 function asStringArray(value: unknown): string[] {
   if (value == null) return [];
@@ -260,7 +261,11 @@ export async function POST(
       }
     }
 
-    const dict = await fetchDictionary(lemma);
+    /* Merriam-Webster only indexes single headwords, so a multi-word phrase
+       matches its first word and yields first-word definitions/synonyms/etc.
+       Skip the dictionary for phrases and let the AI cover the whole phrase. */
+    const isPhrase = isPhraseEntry(lemma);
+    const dict = isPhrase ? null : await fetchDictionary(lemma);
 
     const rowSynRaw = asStringArray(row.synonyms);
     const rowLegacyExpr = asStringArray(

@@ -91,16 +91,18 @@ export function WordSectionEditForm({
                 placeholder="/…/"
               />
             </label>
-            <Button
-              type="button"
-              variant="ghost"
-              size="default"
-              className="h-10 w-10 p-0 rounded-full shrink-0"
-              onClick={() => playPronunciation(word)}
-              aria-label="Pronounce"
-            >
-              <Volume2 className="size-5" />
-            </Button>
+            {!isPhrase && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="default"
+                className="h-10 w-10 p-0 rounded-full shrink-0"
+                onClick={() => playPronunciation(word)}
+                aria-label="Pronounce"
+              >
+                <Volume2 className="size-5" />
+              </Button>
+            )}
             <a
               href={youglish}
               target="_blank"

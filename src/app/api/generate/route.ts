@@ -47,21 +47,33 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const prompt = `Generate a comprehensive vocabulary card for the English word "${word.trim()}".
+    const lemma = word.trim();
+    const isPhrase = /\s/.test(lemma);
+    const term = isPhrase ? "phrase" : "word";
+
+    const prompt = `Generate a comprehensive vocabulary card for the English ${term} "${lemma}".
+
+The card MUST describe the entire ${term} "${lemma}" as a whole${
+      isPhrase
+        ? " (an idiom / multi-word expression), NOT just its individual words"
+        : ""
+    }.
 
 Return a JSON object with these exact fields:
-- "word": the word itself
-- "definition": clear English definition
-- "translation_zh": Chinese translation
-- "ipa": IPA pronunciation
-- "part_of_speech": e.g. "noun", "verb", "adjective"
+- "word": the ${term} itself
+- "definition": clear English definition of the whole ${term}
+- "translation_zh": Chinese translation of the whole ${term}
+- "ipa": IPA pronunciation${isPhrase ? ' (use "" for phrases)' : ""}
+- "part_of_speech": e.g. "noun", "verb", "adjective"${
+      isPhrase ? ' (or "phrase" / "idiom")' : ""
+    }
 - "category": one of: academic, business, science, medicine, art, technology, daily conversation, law, politics, sports, music, food, travel, education, nature
-- "example_sentences": array of 3 example sentences using the word
-- "synonyms": array of 5-12 common synonyms (single words or short phrases)
-- "antonyms": array of opposites where natural (may be empty for nouns with no crisp opposite)
-- "collocations": array of 4-8 typical phrases or patterns using this word (multi-word OK)
-- "mnemonic": a creative memory aid or mnemonic device
-- "image_prompt": a descriptive prompt to generate an illustration for this word
+- "example_sentences": array of 3 example sentences using the whole ${term}
+- "synonyms": array of 5-12 common synonyms of the whole ${term} (single words or short phrases)
+- "antonyms": array of opposites of the whole ${term} where natural (may be empty when there is no crisp opposite)
+- "collocations": array of 4-8 typical phrases or patterns using this ${term}
+- "mnemonic": a creative memory aid or mnemonic device for the whole ${term}
+- "image_prompt": a descriptive prompt to generate an illustration for this ${term}
 
 Respond ONLY with valid JSON, no markdown or extra text.`;
 

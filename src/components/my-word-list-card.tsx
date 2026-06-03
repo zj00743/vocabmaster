@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CocaOrCustomBadge } from "@/components/word-entry-badges";
 import { canPlayPronunciation, playPronunciation } from "@/lib/pronunciation";
+import { isPhraseEntry } from "@/lib/word-entry";
 import type { WordWithProgress } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -78,25 +79,27 @@ export function MyWordListCard({
         )}
         <div className="flex items-center gap-0.5 min-w-0 flex-1">
           <p className="text-sm font-medium truncate leading-tight">{word.word}</p>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            className="h-7 w-7 shrink-0 text-muted-foreground hover:text-foreground"
-            disabled={!canPlayPronunciation(word)}
-            aria-label={`Listen to ${word.word}`}
-            title={
-              word.pronunciation_url?.trim()
-                ? "Play dictionary audio"
-                : "Play pronunciation"
-            }
-            onClick={(e) => {
-              e.stopPropagation();
-              playPronunciation(word);
-            }}
-          >
-            <Volume2 className="size-3.5" aria-hidden />
-          </Button>
+          {!isPhraseEntry(word.word) && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              className="h-7 w-7 shrink-0 text-muted-foreground hover:text-foreground"
+              disabled={!canPlayPronunciation(word)}
+              aria-label={`Listen to ${word.word}`}
+              title={
+                word.pronunciation_url?.trim()
+                  ? "Play dictionary audio"
+                  : "Play pronunciation"
+              }
+              onClick={(e) => {
+                e.stopPropagation();
+                playPronunciation(word);
+              }}
+            >
+              <Volume2 className="size-3.5" aria-hidden />
+            </Button>
+          )}
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
           <CocaOrCustomBadge

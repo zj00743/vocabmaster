@@ -432,16 +432,18 @@ export function WordDetailBody({
                     placeholder="/…/"
                   />
                 </label>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="default"
-                  className="h-10 w-10 p-0 rounded-full shrink-0 mt-6 sm:mt-6"
-                  onClick={() => playPronunciation(word)}
-                  aria-label="Pronounce"
-                >
-                  <Volume2 className="size-5" />
-                </Button>
+                {!isPhrase && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="default"
+                    className="h-10 w-10 p-0 rounded-full shrink-0 mt-6 sm:mt-6"
+                    onClick={() => playPronunciation(word)}
+                    aria-label="Pronounce"
+                  >
+                    <Volume2 className="size-5" />
+                  </Button>
+                )}
                 <a
                   href={youglish}
                   target="_blank"
@@ -506,16 +508,18 @@ export function WordDetailBody({
             <p className="text-base tracking-wide text-muted-foreground font-sans min-h-[1.25rem]">
               {word.ipa || "—"}
             </p>
-            <Button
-              type="button"
-              variant="ghost"
-              size="default"
-              className="h-10 w-10 p-0 rounded-full shrink-0"
-              onClick={() => playPronunciation(word)}
-              aria-label="Pronounce"
-            >
-              <Volume2 className="size-5" />
-            </Button>
+            {!isPhrase && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="default"
+                className="h-10 w-10 p-0 rounded-full shrink-0"
+                onClick={() => playPronunciation(word)}
+                aria-label="Pronounce"
+              >
+                <Volume2 className="size-5" />
+              </Button>
+            )}
             <a
               href={youglish}
               target="_blank"
@@ -880,16 +884,18 @@ export function WordDetailBody({
             {word.ipa || "—"}
           </p>
           <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mt-1">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="p-0 rounded-full h-8 w-8"
-              onClick={() => playPronunciation(word)}
-              aria-label="Pronounce"
-            >
-              <Volume2 className="size-4" />
-            </Button>
+            {!isPhrase && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="p-0 rounded-full h-8 w-8"
+                onClick={() => playPronunciation(word)}
+                aria-label="Pronounce"
+              >
+                <Volume2 className="size-4" />
+              </Button>
+            )}
             <a
               href={youglish}
               target="_blank"
