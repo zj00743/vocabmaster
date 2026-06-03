@@ -17,7 +17,6 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Flashcard } from "@/components/flashcard";
 import { FsrsForgettingCurvePanel } from "@/components/fsrs-forgetting-curve";
 import type { WordWithProgress } from "@/lib/types";
-import { needsAutoEnrich } from "@/lib/enrich-utils";
 import { normalizeWord } from "@/lib/word-utils";
 
 type EditorTab = "front" | "back" | "memory-curve";
@@ -34,7 +33,6 @@ function WordEditorInner() {
 
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
-  const [enriching, setEnriching] = useState(false);
   const [editorTab, setEditorTab] = useState<EditorTab>(() =>
     tabFromSearchParams(searchParams.get("tab"))
   );
@@ -45,7 +43,7 @@ function WordEditorInner() {
     setLoading(true);
     setNotFound(false);
     try {
-      const res = await fetch(`/api/words/${id}`);
+      const res = await fetch(`/api/words/${id}`, { cache: "no-store" });
       if (res.status === 404) {
         setNotFound(true);
         setWord(null);
@@ -75,28 +73,6 @@ function WordEditorInner() {
     setEditorTab(tabFromSearchParams(searchParams.get("tab")));
     void loadWord();
   }, [searchParams, loadWord]);
-
-  useEffect(() => {
-    if (!word || !needsAutoEnrich(word)) return;
-    let cancelled = false;
-    setEnriching(true);
-    fetch(`/api/words/${word.id}/enrich`, { method: "POST" })
-      .then((r) => r.json())
-      .then((json: { word?: WordWithProgress }) => {
-        if (cancelled || !json?.word) return;
-        setWord(
-          normalizeWord({ ...json.word, progress: word.progress })
-        );
-        toast.success("Card updated from dictionary");
-      })
-      .catch(() => undefined)
-      .finally(() => {
-        if (!cancelled) setEnriching(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [word?.id]);
 
   const mergeImage = useCallback((nextUrl: string | null) => {
     setWord((prev) => (prev ? { ...prev, image_url: nextUrl } : null));
@@ -188,7 +164,6 @@ function WordEditorInner() {
                     showAnswer={false}
                     onFlip={() => undefined}
                     onRate={() => undefined}
-                    enriching={enriching}
                     onWordImageUpdate={(wid, url) => {
                       if (wid !== word.id) return;
                       mergeImage(url);
@@ -207,7 +182,6 @@ function WordEditorInner() {
                     showAnswer
                     onFlip={() => undefined}
                     onRate={() => undefined}
-                    enriching={enriching}
                     onWordImageUpdate={(wid, url) => {
                       if (wid !== word.id) return;
                       mergeImage(url);

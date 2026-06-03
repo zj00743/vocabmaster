@@ -1,5 +1,6 @@
 import type { WordEditSectionSlug } from "@/lib/word-section-meta";
 import type { WordWithProgress } from "@/lib/types";
+import { definitionToEditLines, editLinesToDefinition } from "@/lib/word-utils";
 
 export type SectionFieldValues = {
   lemma: string;
@@ -20,8 +21,10 @@ export function sectionFieldsFromWord(word: WordWithProgress): SectionFieldValue
     ipa: (word.ipa ?? "").trim(),
     category: (word.category ?? "").trim(),
     partOfSpeech: (word.part_of_speech ?? "").trim(),
-    definition: word.definition ?? "",
-    translationZh: word.translation_zh ?? "",
+    /* Definition/translation are edited as one sense per line; collapse to the
+       stored `" · "` form only at save time so typing spaces/newlines works. */
+    definition: definitionToEditLines(word.definition ?? ""),
+    translationZh: definitionToEditLines(word.translation_zh ?? ""),
     examplesText: word.example_sentences.filter(Boolean).join("\n"),
     synonymsText: word.synonyms.filter(Boolean).join("\n"),
     antonymsText: word.antonyms.filter(Boolean).join("\n"),
@@ -55,13 +58,13 @@ export function buildSectionPatchPayload(
     }
     case "back_definition":
       return {
-        definition: values.definition.trim(),
-        translation_zh: values.translationZh.trim(),
+        definition: editLinesToDefinition(values.definition),
+        translation_zh: editLinesToDefinition(values.translationZh),
       };
     case "definition-en":
-      return { definition: values.definition.trim() };
+      return { definition: editLinesToDefinition(values.definition) };
     case "definition-zh":
-      return { translation_zh: values.translationZh.trim() };
+      return { translation_zh: editLinesToDefinition(values.translationZh) };
     case "back_examples":
       return { example_sentences: linesFromText(values.examplesText) };
     case "back_synonyms":

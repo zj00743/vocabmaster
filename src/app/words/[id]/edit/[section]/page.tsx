@@ -83,7 +83,7 @@ function WordSectionEditInner() {
     setLoading(true);
     setNotFound(false);
     try {
-      const res = await fetch(`/api/words/${id}`);
+      const res = await fetch(`/api/words/${id}`, { cache: "no-store" });
       if (res.status === 404) {
         setNotFound(true);
         setWord(null);

@@ -8,10 +8,6 @@ import { isPhraseEntry } from "@/lib/word-entry";
 import type { WordEditSectionSlug } from "@/lib/word-section-meta";
 import type { SectionFieldValues } from "@/lib/word-section-save";
 import type { WordWithProgress } from "@/lib/types";
-import {
-  definitionToEditLines,
-  editLinesToDefinition,
-} from "@/lib/word-utils";
 import { cn } from "@/lib/utils";
 import { playPronunciation } from "@/lib/pronunciation";
 
@@ -139,23 +135,15 @@ export function WordSectionEditForm({
           One sense per line · first line appears on card front
           <textarea
             spellCheck
-            value={definitionToEditLines(values.definition)}
-            onChange={(e) =>
-              onChange({
-                definition: editLinesToDefinition(e.target.value),
-              })
-            }
+            value={values.definition}
+            onChange={(e) => onChange({ definition: e.target.value })}
             placeholder="One gloss per line"
             rows={
               full
                 ? undefined
                 : Math.min(
                     16,
-                    Math.max(
-                      6,
-                      definitionToEditLines(values.definition).split("\n")
-                        .length + 2
-                    )
+                    Math.max(6, values.definition.split("\n").length + 2)
                   )
             }
             className={full ? fullTextareaCn : cn(boxedTextareaCn, "min-h-[10rem]")}
@@ -173,23 +161,15 @@ export function WordSectionEditForm({
         >
           One line per bullet if using multiple glosses
           <textarea
-            value={definitionToEditLines(values.translationZh)}
-            onChange={(e) =>
-              onChange({
-                translationZh: editLinesToDefinition(e.target.value),
-              })
-            }
+            value={values.translationZh}
+            onChange={(e) => onChange({ translationZh: e.target.value })}
             placeholder="中文释义…"
             rows={
               full
                 ? undefined
                 : Math.min(
                     10,
-                    Math.max(
-                      4,
-                      definitionToEditLines(values.translationZh).split("\n")
-                        .length + 2
-                    )
+                    Math.max(4, values.translationZh.split("\n").length + 2)
                   )
             }
             className={full ? fullTextareaCn : boxedTextareaCn}
@@ -216,14 +196,10 @@ export function WordSectionEditForm({
             English · first line appears on card front · one sense per line
             <textarea
               spellCheck
-              value={definitionToEditLines(values.definition)}
-              onChange={(e) =>
-                onChange({
-                  definition: editLinesToDefinition(e.target.value),
-                })
-              }
+              value={values.definition}
+              onChange={(e) => onChange({ definition: e.target.value })}
               placeholder="One gloss per line"
-              rows={full ? undefined : Math.min(16, Math.max(6, definitionToEditLines(values.definition).split("\n").length + 2))}
+              rows={full ? undefined : Math.min(16, Math.max(6, values.definition.split("\n").length + 2))}
               className={full ? fullTextareaCn : cn(boxedTextareaCn, "min-h-[10rem]")}
             />
           </label>
@@ -235,13 +211,9 @@ export function WordSectionEditForm({
           >
             中文 · one line per bullet if using multiple glosses
             <textarea
-              value={definitionToEditLines(values.translationZh)}
-              onChange={(e) =>
-                onChange({
-                  translationZh: editLinesToDefinition(e.target.value),
-                })
-              }
-              rows={full ? undefined : Math.min(10, Math.max(4, definitionToEditLines(values.translationZh).split("\n").length + 2))}
+              value={values.translationZh}
+              onChange={(e) => onChange({ translationZh: e.target.value })}
+              rows={full ? undefined : Math.min(10, Math.max(4, values.translationZh.split("\n").length + 2))}
               className={full ? fullTextareaCn : boxedTextareaCn}
             />
           </label>
