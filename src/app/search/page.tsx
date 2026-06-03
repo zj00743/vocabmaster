@@ -304,10 +304,10 @@ export default function SearchPage() {
         if (pr.ok || pr.status === 409) {
           setSavedIds((prev) => new Set(prev).add(word.id!));
           toast.success(`"${word.word}" added to your words`);
-          openFlashcard(word as WordWithProgress);
           void fetch(`/api/words/${word.id}/enrich`, { method: "POST" }).catch(
             () => undefined
           );
+          router.push(`/words/${word.id}?tab=back`);
         } else {
           const j = (await pr.json().catch(() => ({}))) as { error?: string };
           toast.error(j.error ?? "Could not add word");
@@ -351,10 +351,10 @@ export default function SearchPage() {
         }
         setSavedIds((prev) => new Set(prev).add(saved.id));
         toast.success(`"${word.word}" added to your words`);
-        openFlashcard(saved as WordWithProgress);
         void fetch(`/api/words/${saved.id}/enrich`, { method: "POST" }).catch(
           () => undefined
         );
+        router.push(`/words/${saved.id}?tab=back`);
       } else {
         const j = (await wordRes.json().catch(() => ({}))) as { error?: string };
         toast.error(j.error ?? "Failed to save word");
