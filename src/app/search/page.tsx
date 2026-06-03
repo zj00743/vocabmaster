@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import {
   Search as SearchIcon,
   Sparkles,
@@ -44,6 +45,7 @@ function isUuid(id: unknown): id is string {
 }
 
 export default function SearchPage() {
+  const router = useRouter();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [searching, setSearching] = useState(false);
@@ -177,10 +179,52 @@ export default function SearchPage() {
     setDraftOpen(true);
   }, []);
 
-  const handleAddManually = () => {
+  /* Manual add creates a minimal custom card and drops the user on the word
+     detail page (same destination as tapping a word in My Words), where they
+     fill in the sections via the inline edit pages. */
+  const handleAddManually = async () => {
     const lemma = query.trim();
     if (!lemma) return;
-    openDraftReview({ lemma });
+    setSavingKey(lemma);
+    try {
+      const wordRes = await fetch("/api/words", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ word: lemma }),
+      });
+      if (!wordRes.ok) {
+        const j = (await wordRes.json().catch(() => ({}))) as { error?: string };
+        const msg = (j.error ?? "").toString();
+        if (
+          msg.toLowerCase().includes("duplicate") ||
+          msg.includes("unique")
+        ) {
+          toast.error(
+            `"${lemma}" is already in the dictionary. Search for it and tap Add.`
+          );
+        } else {
+          toast.error(msg || "Failed to add word");
+        }
+        return;
+      }
+      const saved = (await wordRes.json()) as Word;
+      const prog = await fetch("/api/progress", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ word_id: saved.id }),
+      });
+      if (!prog.ok && prog.status !== 409) {
+        const j = (await prog.json().catch(() => ({}))) as { error?: string };
+        toast.error(j.error ?? "Word saved but could not add to My Words");
+        return;
+      }
+      toast.success(`"${saved.word}" added to My Words`);
+      router.push(`/words/${saved.id}?tab=back`);
+    } catch {
+      toast.error("Failed to add word");
+    } finally {
+      setSavingKey(null);
+    }
   };
 
   const handleDraftConfirmed = useCallback(
