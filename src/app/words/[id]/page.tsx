@@ -92,8 +92,8 @@ function WordEditorInner() {
 
   return (
     <AppShell>
-      <div className="flex h-dvh max-h-dvh min-h-0 flex-col overflow-hidden md:h-auto md:max-h-none md:flex-1">
-        <div className="mx-auto flex w-full max-w-3xl min-h-0 flex-1 flex-col overflow-hidden md:px-8">
+      <div className="flex h-dvh max-h-dvh min-h-0 flex-col overflow-hidden md:h-auto md:max-h-none md:flex-1 md:overflow-visible">
+        <div className="mx-auto flex w-full max-w-3xl min-h-0 flex-1 flex-col overflow-hidden md:px-8 md:overflow-visible">
           <header className="shrink-0 border-b bg-background px-4 pb-3 pt-4 md:px-0">
             <div className="flex min-w-0 items-center gap-2">
               <Link href="/words" className="shrink-0">
@@ -114,7 +114,7 @@ function WordEditorInner() {
             </div>
           </header>
 
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain pb-[calc(3.5rem+env(safe-area-inset-bottom,0px))] md:pb-8">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain pb-[calc(3.5rem+env(safe-area-inset-bottom,0px))] md:pb-8 md:overflow-y-visible md:overscroll-auto">
             {!loading && word && (
               <div className="bg-background px-4 py-3 md:px-0">
                 <Tabs
