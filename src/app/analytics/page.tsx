@@ -90,6 +90,15 @@ const RATING_COLORS = {
   easy: "#3b82f6",
 } as const;
 
+/** Sequential-ish palette per CoCA frequency band (matches /api/analytics keys). */
+const COCA_BAND_COLORS: Record<string, string> = {
+  "1-4k": "#3b82f6", // blue-500 — most common
+  "4k-10k": "#06b6d4", // cyan-500
+  "10k-25k": "#8b5cf6", // violet-500
+  "25k+": "#ec4899", // pink-500
+  none: "#94a3b8", // slate-400 — no rank
+};
+
 export default function AnalyticsPage() {
   const [data, setData] = useState<AnalyticsResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -170,6 +179,26 @@ export default function AnalyticsPage() {
         review: c.review,
         mastered: c.mastered,
       },
+    }));
+  }, [data]);
+
+  /* Transposed view: one row per learning stage, segmented by CoCA band. */
+  const cocaSegments = useMemo(() => {
+    if (!data) return [];
+    return data.coca_by_stage.map((c) => ({
+      key: c.key,
+      label: c.label,
+      color: COCA_BAND_COLORS[c.key] ?? "#94a3b8",
+    }));
+  }, [data]);
+
+  const stageByCocaRows = useMemo(() => {
+    if (!data) return [];
+    return STAGE_ORDER.map((s) => ({
+      label: STAGE_LABELS[s],
+      values: Object.fromEntries(
+        data.coca_by_stage.map((c) => [c.key, c[s] ?? 0])
+      ),
     }));
   }, [data]);
 
@@ -435,6 +464,20 @@ export default function AnalyticsPage() {
               <StackedBarChart
                 rows={cocaRows}
                 segments={STAGE_SEGMENTS}
+                orientation="horizontal"
+                unitLabel="words"
+                showPercents
+              />
+            </ChartCard>
+
+            {/* === Stage x CoCA rank (transposed) === */}
+            <ChartCard
+              title="Stage × CoCA rank"
+              description="For each learning stage, the share of words from each CoCA frequency band. Hover a segment for exact counts."
+            >
+              <StackedBarChart
+                rows={stageByCocaRows}
+                segments={cocaSegments}
                 orientation="horizontal"
                 unitLabel="words"
                 showPercents
