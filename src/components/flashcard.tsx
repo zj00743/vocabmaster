@@ -66,6 +66,8 @@ interface FlashcardProps {
   };
   /** Pin Flip card above mobile bottom nav (word detail, dialogs). */
   stickyFlipBar?: boolean;
+  /** Review: opens word editor (e.g. `/words/:id?tab=back`) when back is showing. */
+  editWordHref?: string;
   /** My Words editor: flat scrollable front/back (no flip animation or card chrome). */
   layout?: "card" | "page";
   /** Which side to show when `layout` is `"page"`. */
@@ -95,7 +97,7 @@ function FlipCardButton({
         onFlip();
       }}
     >
-      flip
+      Flip
     </Button>
   );
 }
@@ -166,11 +168,14 @@ export function Flashcard({
   browseEdit,
   relationListDraftText,
   stickyFlipBar = false,
+  editWordHref,
   layout = "card",
   pageSide = "front",
 }: FlashcardProps) {
   const isPageLayout = layout === "page";
-  const showCornerFlip = !isPageLayout;
+  const useReviewDock =
+    !!editWordHref && fixedRatingBar && !isPageLayout;
+  const showCornerFlip = !isPageLayout && !useReviewDock;
   const useDockedFlip = stickyFlipBar && !fixedRatingBar && !isPageLayout;
   const word = useMemo(() => normalizeWord(raw), [raw]);
 
@@ -614,7 +619,27 @@ export function Flashcard({
             "mx-auto flex min-h-0 max-w-3xl flex-1 flex-col"
         )}
       >
-        {showCornerFlip ? (
+        {useReviewDock ? (
+          <div className="absolute top-3 right-3 z-20 flex flex-col items-end gap-2">
+            <FlipCardButton onFlip={onFlip} />
+            {showAnswer && editWordHref ? (
+              <Link href={editWordHref}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className={cn(
+                    "font-sans h-8 min-w-0 px-3 text-sm font-medium",
+                    "border-primary/25 bg-background/95 shadow-sm backdrop-blur-sm",
+                    "hover:bg-muted/60 hover:border-primary/40"
+                  )}
+                >
+                  Edit
+                </Button>
+              </Link>
+            ) : null}
+          </div>
+        ) : showCornerFlip ? (
           <FlipCardButton
             onFlip={onFlip}
             className="absolute top-3 right-3 z-20"
@@ -645,7 +670,12 @@ export function Flashcard({
 
           {/* Back */}
           <div className="backface-hidden rotate-y-180 absolute inset-0 rounded-2xl border bg-card shadow-sm flex flex-col overflow-hidden font-sans">
-            <div className="flex-1 overflow-y-auto overscroll-contain px-5 py-5 sm:px-7 sm:py-6 pb-4">
+            <div
+              className={cn(
+                "flex-1 overflow-y-auto overscroll-contain px-5 py-5 sm:px-7 sm:py-6 pb-4",
+                useReviewDock && showAnswer && "pt-20"
+              )}
+            >
               <WordDetailBody
                 word={word}
                 showImageBlock={false}

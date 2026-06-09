@@ -201,6 +201,7 @@ export default function ReviewPage() {
               enriching={enrichingId === currentWord.id}
               fixedRatingBar
               showRatingBar={false}
+              editWordHref={`/words/${currentWord.id}?tab=back`}
             />
           </div>
         )}
