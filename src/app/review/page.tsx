@@ -13,6 +13,13 @@ import { needsAutoEnrich } from "@/lib/enrich-utils";
 import {
   REVIEW_QUEUE_INVALIDATE_EVENT,
 } from "@/lib/review-queue-sync";
+import {
+  clearReviewSession,
+  createReviewSession,
+  isSessionForToday,
+  loadReviewSession,
+  saveReviewSession,
+} from "@/lib/review-session-storage";
 
 export default function ReviewPage() {
   const [queue, setQueue] = useState<WordWithProgress[]>([]);
@@ -23,47 +30,85 @@ export default function ReviewPage() {
   const [reviewedCount, setReviewedCount] = useState(0);
   const [enrichingId, setEnrichingId] = useState<string | null>(null);
   const [enrichDenyIds, setEnrichDenyIds] = useState(() => new Set<string>());
+  const [startingAnother, setStartingAnother] = useState(false);
 
-  const loadQueue = useCallback(async () => {
-    try {
-      const res = await fetch("/api/review");
-      if (res.ok) {
+  const mapReviewCards = useCallback(
+    (cards: Record<string, unknown>[]): WordWithProgress[] =>
+      cards.map((card) => {
+        let merged: WordWithProgress;
+        if (card.word && typeof card.word === "object") {
+          const w = card.word as Record<string, unknown>;
+          merged = {
+            ...(w as unknown as WordWithProgress),
+            progress: {
+              id: String(card.id ?? ""),
+              word_id: String(card.word_id ?? w.id ?? ""),
+              status: card.status as LearningProgress["status"],
+              difficulty: Number(card.difficulty ?? 0),
+              stability: Number(card.stability ?? 0),
+              next_review: String(card.next_review ?? ""),
+              last_reviewed: card.last_reviewed
+                ? String(card.last_reviewed)
+                : null,
+              review_count: Number(card.review_count ?? 0),
+              created_at: String(card.created_at ?? ""),
+            },
+          };
+        } else {
+          merged = card as unknown as WordWithProgress;
+        }
+        return normalizeWord(merged);
+      }),
+    []
+  );
+
+  const applySession = useCallback((session: ReturnType<typeof loadReviewSession>) => {
+    if (!session || session.queue.length === 0) return false;
+    const done =
+      session.finished || session.currentIndex >= session.queue.length;
+    setQueue(session.queue);
+    setCurrentIndex(
+      done
+        ? session.queue.length
+        : Math.min(session.currentIndex, session.queue.length - 1)
+    );
+    setReviewedCount(session.reviewedCount);
+    setFinished(done);
+    setShowAnswer(false);
+    return true;
+  }, []);
+
+  const loadQueue = useCallback(
+    async (options?: { forceFresh?: boolean }) => {
+      try {
+        if (!options?.forceFresh) {
+          const saved = loadReviewSession();
+          if (saved && isSessionForToday(saved) && applySession(saved)) {
+            return;
+          }
+        }
+
+        clearReviewSession();
+
+        const res = await fetch("/api/review");
+        if (!res.ok) return;
+
         const data = await res.json();
         const cards = data.cards ?? data.words ?? (Array.isArray(data) ? data : []);
-        const mapped: WordWithProgress[] = cards.map(
-          (card: Record<string, unknown>) => {
-            let merged: WordWithProgress;
-            if (card.word && typeof card.word === "object") {
-              const w = card.word as Record<string, unknown>;
-              merged = {
-                ...(w as unknown as WordWithProgress),
-                progress: {
-                  id: String(card.id ?? ""),
-                  word_id: String(card.word_id ?? w.id ?? ""),
-                  status: card.status as LearningProgress["status"],
-                  difficulty: Number(card.difficulty ?? 0),
-                  stability: Number(card.stability ?? 0),
-                  next_review: String(card.next_review ?? ""),
-                  last_reviewed: card.last_reviewed
-                    ? String(card.last_reviewed)
-                    : null,
-                  review_count: Number(card.review_count ?? 0),
-                  created_at: String(card.created_at ?? ""),
-                },
-              };
-            } else {
-              merged = card as unknown as WordWithProgress;
-            }
-            return normalizeWord(merged);
-          }
-        );
+        const mapped = mapReviewCards(cards as Record<string, unknown>[]);
+        const session = createReviewSession(mapped);
+        saveReviewSession(session);
         setQueue(mapped);
-        setFinished(mapped.length === 0);
+        setCurrentIndex(0);
+        setReviewedCount(0);
+        setFinished(session.finished);
+        setShowAnswer(false);
+      } catch {
+        // API not available
       }
-    } catch {
-      // API not available
-    }
-  }, []);
+    },
+    [applySession, mapReviewCards]
+  );
 
   useEffect(() => {
     setLoading(true);
@@ -73,16 +118,34 @@ export default function ReviewPage() {
   useEffect(() => {
     /* Same-tab removals from My Words / bulk delete invalidate this queue. */
     const onInvalidate = () => {
-      setCurrentIndex(0);
-      setShowAnswer(false);
-      setFinished(false);
-      setReviewedCount(0);
       setEnrichingId(null);
       setLoading(true);
-      void loadQueue().finally(() => setLoading(false));
+      void loadQueue({ forceFresh: true }).finally(() => setLoading(false));
     };
     window.addEventListener(REVIEW_QUEUE_INVALIDATE_EVENT, onInvalidate);
     return () => window.removeEventListener(REVIEW_QUEUE_INVALIDATE_EVENT, onInvalidate);
+  }, [loadQueue]);
+
+  useEffect(() => {
+    if (loading || queue.length === 0) return;
+    saveReviewSession(
+      createReviewSession(queue, {
+        currentIndex,
+        reviewedCount,
+        finished,
+      })
+    );
+  }, [queue, currentIndex, reviewedCount, finished, loading]);
+
+  const startAnotherSet = useCallback(async () => {
+    setStartingAnother(true);
+    setLoading(true);
+    try {
+      await loadQueue({ forceFresh: true });
+    } finally {
+      setLoading(false);
+      setStartingAnother(false);
+    }
   }, [loadQueue]);
 
   const handleFlip = useCallback(() => {
@@ -217,12 +280,21 @@ export default function ReviewPage() {
                 ? `You reviewed ${reviewedCount} card${reviewedCount !== 1 ? "s" : ""}. Great work!`
                 : "No cards are due for review right now. Check back later."}
             </p>
-            <div className="flex gap-3 justify-center pt-2">
+            <div className="flex flex-wrap gap-3 justify-center pt-2">
+              {reviewedCount > 0 && (
+                <Button
+                  type="button"
+                  onClick={() => void startAnotherSet()}
+                  disabled={startingAnother}
+                >
+                  {startingAnother ? "Loading…" : "Review more"}
+                </Button>
+              )}
               <Link href="/">
                 <Button variant="outline">Dashboard</Button>
               </Link>
               <Link href="/search">
-                <Button>Add Words</Button>
+                <Button variant="outline">Add Words</Button>
               </Link>
             </div>
           </div>
