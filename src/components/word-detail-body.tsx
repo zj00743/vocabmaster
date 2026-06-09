@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { WordTypeBadge } from "@/components/word-entry-badges";
-import { isPhraseEntry, resolveEntryType } from "@/lib/word-entry";
+import { isPhraseEntry, resolveShowImage } from "@/lib/word-entry";
 import type { WordWithProgress } from "@/lib/types";
 import { normalizeWord, splitStoredDefinitionLines, definitionToEditLines, editLinesToDefinition } from "@/lib/word-utils";
 import { cn } from "@/lib/utils";
@@ -283,8 +283,11 @@ export function WordDetailBody({
 }: WordDetailBodyProps) {
   const word = normalizeWord(raw);
   const isPhrase = isPhraseEntry(word.word);
-  const isSentencePattern =
-    resolveEntryType(word.word, word.entry_type) === "sentence_pattern";
+  const showImage = resolveShowImage(
+    word.word,
+    word.entry_type,
+    word.show_image
+  );
   const youglish = `https://youglish.com/pronounce/${encodeURIComponent(word.word)}/english`;
   const fc = variant === "flashcard";
   const sect = fc && sectionEdit ? sectionEdit : undefined;
@@ -312,7 +315,7 @@ export function WordDetailBody({
           {statusBanner}
         </p>
       )}
-      {showImageBlock && !isSentencePattern && (
+      {showImageBlock && showImage && (
         <>
           <div
             className={cn(

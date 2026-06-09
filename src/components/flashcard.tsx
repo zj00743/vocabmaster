@@ -9,7 +9,7 @@ import { WordTypeBadge } from "@/components/word-entry-badges";
 import {
   entryBlankSlotChWidths,
   isPhraseEntry,
-  resolveEntryType,
+  resolveShowImage,
 } from "@/lib/word-entry";
 import { cn } from "@/lib/utils";
 import { wordImageEditPath } from "@/lib/word-section-meta";
@@ -207,9 +207,12 @@ export function Flashcard({
 
   const [wordVisible, setWordVisible] = useState(false);
   const isPhrase = isPhraseEntry(word.word);
-  /* Sentence patterns are abstract — no illustration. */
-  const isSentencePattern =
-    resolveEntryType(word.word, word.entry_type) === "sentence_pattern";
+  /* Per-card image toggle (defaults off for sentence patterns). */
+  const showImage = resolveShowImage(
+    word.word,
+    word.entry_type,
+    word.show_image
+  );
   const blankSlotWidths = useMemo(
     () => entryBlankSlotChWidths(word.word),
     [word.word]
@@ -295,7 +298,7 @@ export function Flashcard({
 
   const frontFaceBody = (
     <>
-      {!isSentencePattern && (
+      {showImage && (
       <div
         className={cn(
           "relative w-full aspect-[16/10] bg-muted/40 flex items-center justify-center isolate group",

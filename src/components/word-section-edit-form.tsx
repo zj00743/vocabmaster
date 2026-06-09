@@ -155,6 +155,24 @@ export function WordSectionEditForm({
               </SelectContent>
             </Select>
           </label>
+
+          <label className="flex min-w-[7rem] max-w-sm flex-col gap-1.5 text-xs text-muted-foreground">
+            Card image
+            <Select
+              value={values.showImage ? "on" : "off"}
+              onValueChange={(v) => v && onChange({ showImage: v === "on" })}
+            >
+              <SelectTrigger className="h-10 text-sm">
+                <SelectValue>
+                  {values.showImage ? "Shown" : "Hidden"}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="on">Shown</SelectItem>
+                <SelectItem value="off">Hidden</SelectItem>
+              </SelectContent>
+            </Select>
+          </label>
         </div>
       );
 

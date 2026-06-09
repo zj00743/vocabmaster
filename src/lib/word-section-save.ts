@@ -1,7 +1,11 @@
 import type { WordEditSectionSlug } from "@/lib/word-section-meta";
 import type { WordWithProgress } from "@/lib/types";
 import { definitionToEditLines, editLinesToDefinition } from "@/lib/word-utils";
-import { type EntryType, resolveEntryType } from "@/lib/word-entry";
+import {
+  type EntryType,
+  resolveEntryType,
+  resolveShowImage,
+} from "@/lib/word-entry";
 
 export type SectionFieldValues = {
   lemma: string;
@@ -9,6 +13,7 @@ export type SectionFieldValues = {
   category: string;
   partOfSpeech: string;
   entryType: EntryType;
+  showImage: boolean;
   definition: string;
   translationZh: string;
   examplesText: string;
@@ -24,6 +29,7 @@ export function sectionFieldsFromWord(word: WordWithProgress): SectionFieldValue
     category: (word.category ?? "").trim(),
     partOfSpeech: (word.part_of_speech ?? "").trim(),
     entryType: resolveEntryType(word.word ?? "", word.entry_type),
+    showImage: resolveShowImage(word.word ?? "", word.entry_type, word.show_image),
     /* Definition/translation are edited as one sense per line; collapse to the
        stored `" · "` form only at save time so typing spaces/newlines works. */
     definition: definitionToEditLines(word.definition ?? ""),
@@ -54,6 +60,7 @@ export function buildSectionPatchPayload(
         category: values.category.trim() || "",
         part_of_speech: values.partOfSpeech.trim(),
         entry_type: values.entryType,
+        show_image: values.showImage,
       };
       if (word.is_custom) {
         payload.word = values.lemma.trim() || word.word;

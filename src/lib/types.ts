@@ -18,6 +18,8 @@ export interface Word {
   category: string | null;
   /** "word" | "phrase" | "sentence_pattern"; null on legacy rows (derive from text). */
   entry_type?: string | null;
+  /** Per-card image toggle; null = use default (off for sentence patterns). */
+  show_image?: boolean | null;
   is_custom: boolean;
   created_at: string;
 }

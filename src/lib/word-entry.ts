@@ -47,6 +47,19 @@ export function deriveStoredEntryType(text: string): Exclude<
   return isPhraseEntry(text) ? "phrase" : "word";
 }
 
+/**
+ * Whether the card image section is shown. An explicit per-card `show_image`
+ * wins; otherwise default off for sentence patterns, on for words/phrases.
+ */
+export function resolveShowImage(
+  text: string,
+  entryTypeStored: string | null | undefined,
+  showImage: boolean | null | undefined
+): boolean {
+  if (typeof showImage === "boolean") return showImage;
+  return resolveEntryType(text, entryTypeStored) !== "sentence_pattern";
+}
+
 /** Short badge label for an entry type. */
 export function entryTypeBadgeLabel(type: EntryType): string {
   switch (type) {

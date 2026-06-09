@@ -305,12 +305,15 @@ export async function POST(request: NextRequest) {
     const entry_type = isStoredEntryType(body.entry_type)
       ? body.entry_type
       : deriveStoredEntryType(word);
+    const show_image =
+      typeof body.show_image === "boolean" ? body.show_image : null;
 
     const { data, error } = await supabase
       .from("words")
       .insert({
         word: word.trim().toLowerCase(),
         entry_type,
+        show_image,
         definition: definition ?? "",
         translation_zh: translation_zh ?? "",
         ipa: ipa ?? "",
