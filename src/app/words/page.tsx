@@ -1,8 +1,23 @@
 "use client";
 
-import { Suspense, useEffect, useState, useCallback, useMemo } from "react";
+import {
+  Suspense,
+  useEffect,
+  useState,
+  useCallback,
+  useMemo,
+  useRef,
+} from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { CheckSquare, Loader2, Trash2, X, MoreVertical } from "lucide-react";
+import {
+  CheckSquare,
+  ChevronLeft,
+  ChevronRight,
+  Loader2,
+  Trash2,
+  X,
+  MoreVertical,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -27,6 +42,9 @@ import { toast } from "sonner";
 import type { WordWithProgress } from "@/lib/types";
 import { invalidateClientReviewQueue } from "@/lib/review-queue-sync";
 import { type FrequencyBand, type WordSort } from "@/lib/frequency-rank";
+import {
+  type DateAddedFilter,
+} from "@/lib/date-added-filter";
 import { type EntryTypeFilter } from "@/lib/word-entry";
 import { MyWordListCard } from "@/components/my-word-list-card";
 
@@ -52,6 +70,8 @@ function WordsPageInner() {
   const [entryTypeFilter, setEntryTypeFilter] =
     useState<EntryTypeFilter>("all");
   const [frequencyFilter, setFrequencyFilter] = useState<FrequencyBand>("all");
+  const [dateAddedFilter, setDateAddedFilter] =
+    useState<DateAddedFilter>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>(
     browseCategory ?? "all"
   );
@@ -64,7 +84,7 @@ function WordsPageInner() {
     { category: string; count: number }[]
   >([]);
   const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
+  const [totalPages, setTotalPages] = useState(1);
   const [filteredTotal, setFilteredTotal] = useState(0);
   const limit = 20;
   /* Phrases and sentence patterns are not in CoCA — hide CoCA frequency. */
@@ -91,7 +111,8 @@ function WordsPageInner() {
   const [deleting, setDeleting] = useState(false);
 
   const fetchWords = useCallback(
-    async (pageNum: number, reset = false) => {
+    async (pageNum: number) => {
+      setLoading(true);
       try {
         const params = new URLSearchParams({
           page: String(pageNum),
@@ -112,6 +133,9 @@ function WordsPageInner() {
         params.set("sort", sortBy);
         if (!browseCorpusInCategory) {
           params.set("in_my_words", "1");
+          if (dateAddedFilter !== "all") {
+            params.set("date_added", dateAddedFilter);
+          }
         }
         const res = await fetch(`/api/words?${params}`);
         if (res.ok) {
@@ -119,10 +143,16 @@ function WordsPageInner() {
           const fetched = Array.isArray(json)
             ? json
             : (json.data ?? json.words ?? []);
-          setWords((prev) => (reset ? fetched : [...prev, ...fetched]));
-          setHasMore(fetched.length >= limit);
-          const total = json?.pagination?.total;
-          if (typeof total === "number") setFilteredTotal(total);
+          setWords(fetched);
+          const pagination = json?.pagination;
+          if (pagination) {
+            if (typeof pagination.total === "number") {
+              setFilteredTotal(pagination.total);
+            }
+            if (typeof pagination.total_pages === "number") {
+              setTotalPages(Math.max(1, pagination.total_pages));
+            }
+          }
         }
       } catch {
         // API not available
@@ -135,6 +165,7 @@ function WordsPageInner() {
       statusFilter,
       entryTypeFilter,
       frequencyFilter,
+      dateAddedFilter,
       phrasesOnly,
       categoryFilter,
       sortBy,
@@ -162,16 +193,19 @@ function WordsPageInner() {
     loadCategories();
   }, [browseCorpusInCategory]);
 
+  const skipPageFetchRef = useRef(false);
+
   useEffect(() => {
-    setLoading(true);
+    skipPageFetchRef.current = true;
     setPage(1);
-    fetchWords(1, true);
     setSelectedIds(new Set());
+    void fetchWords(1);
   }, [
     search,
     statusFilter,
     entryTypeFilter,
     frequencyFilter,
+    dateAddedFilter,
     categoryFilter,
     sortBy,
     browseCategory,
@@ -179,11 +213,26 @@ function WordsPageInner() {
     fetchWords,
   ]);
 
-  const loadMore = () => {
-    const next = page + 1;
-    setPage(next);
-    fetchWords(next);
-  };
+  useEffect(() => {
+    if (skipPageFetchRef.current) {
+      skipPageFetchRef.current = false;
+      return;
+    }
+    void fetchWords(page);
+  }, [page, fetchWords]);
+
+  const goToPage = useCallback(
+    (next: number) => {
+      if (next < 1 || next > totalPages || next === page) return;
+      setPage(next);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    },
+    [page, totalPages]
+  );
+
+  const pageRangeStart =
+    filteredTotal === 0 ? 0 : (page - 1) * limit + 1;
+  const pageRangeEnd = Math.min(page * limit, filteredTotal);
 
   const filterParamsForBulk = useMemo(() => {
     const p = new URLSearchParams();
@@ -195,13 +244,17 @@ function WordsPageInner() {
     }
     const activeCategory = browseCategory ?? categoryFilter;
     if (activeCategory && activeCategory !== "all") p.set("category", activeCategory);
-    if (!browseCorpusInCategory) p.set("in_my_words", "1");
+    if (!browseCorpusInCategory) {
+      p.set("in_my_words", "1");
+      if (dateAddedFilter !== "all") p.set("date_added", dateAddedFilter);
+    }
     return p;
   }, [
     search,
     statusFilter,
     entryTypeFilter,
     frequencyFilter,
+    dateAddedFilter,
     phrasesOnly,
     categoryFilter,
     browseCategory,
@@ -276,7 +329,13 @@ function WordsPageInner() {
       };
       const removed = json.removed ?? ids.length;
       const removedSet = new Set(ids);
-      setWords((prev) => prev.filter((w) => !removedSet.has(w.id)));
+      const remaining = words.filter((w) => !removedSet.has(w.id));
+      if (remaining.length === 0 && page > 1) {
+        setPage(page - 1);
+      } else {
+        setWords(remaining);
+        setFilteredTotal((t) => Math.max(0, t - removed));
+      }
       setSelectedIds(new Set());
       setSelectMode(false);
       setBulkDeleteOpen(false);
@@ -295,14 +354,20 @@ function WordsPageInner() {
     } finally {
       setBulkDeleting(false);
     }
-  }, [selectedIds, bulkDeleting]);
+  }, [selectedIds, bulkDeleting, words, page]);
 
   const handleRemove = async (w: WordWithProgress) => {
     try {
       if (w.is_custom) {
         const res = await fetch(`/api/words/${w.id}`, { method: "DELETE" });
         if (res.ok) {
-          setWords((prev) => prev.filter((x) => x.id !== w.id));
+          const remaining = words.filter((x) => x.id !== w.id);
+          if (remaining.length === 0 && page > 1) {
+            setPage(page - 1);
+          } else {
+            setWords(remaining);
+            setFilteredTotal((t) => Math.max(0, t - 1));
+          }
           invalidateClientReviewQueue();
           toast.success("Word removed");
           return true;
@@ -320,7 +385,13 @@ function WordsPageInner() {
           excluded_saved?: boolean;
           exclusion_error?: string;
         };
-        setWords((prev) => prev.filter((x) => x.id !== w.id));
+        const remaining = words.filter((x) => x.id !== w.id);
+        if (remaining.length === 0 && page > 1) {
+          setPage(page - 1);
+        } else {
+          setWords(remaining);
+          setFilteredTotal((t) => Math.max(0, t - 1));
+        }
         invalidateClientReviewQueue();
         if (j.excluded_saved === false) {
           toast.warning(
@@ -409,6 +480,9 @@ function WordsPageInner() {
           frequencyFilter={frequencyFilter}
           onFrequencyFilterChange={setFrequencyFilter}
           hideFrequencyFilter={phrasesOnly}
+          showDateAddedFilter={!browseCorpusInCategory}
+          dateAddedFilter={dateAddedFilter}
+          onDateAddedFilterChange={setDateAddedFilter}
           categoryFilter={categoryFilter}
           onCategoryFilterChange={setCategoryFilter}
           sortBy={sortBy}
@@ -486,10 +560,37 @@ function WordsPageInner() {
               />
             ))}
 
-            {hasMore && (
-              <Button variant="ghost" className="w-full" onClick={loadMore}>
-                Load more
-              </Button>
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center gap-2 pt-2 flex-nowrap">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0"
+                  disabled={page <= 1}
+                  onClick={() => goToPage(page - 1)}
+                  aria-label="Previous page"
+                >
+                  <ChevronLeft className="size-4" />
+                  Previous
+                </Button>
+                <span className="text-xs text-muted-foreground tabular-nums whitespace-nowrap">
+                  {pageRangeStart}–{pageRangeEnd} of {filteredTotal} · Page {page}{" "}
+                  of {totalPages}
+                </span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0"
+                  disabled={page >= totalPages}
+                  onClick={() => goToPage(page + 1)}
+                  aria-label="Next page"
+                >
+                  Next
+                  <ChevronRight className="size-4" />
+                </Button>
+              </div>
             )}
           </div>
         )}

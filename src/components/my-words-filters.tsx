@@ -20,6 +20,10 @@ import {
   formatCategoryLabel,
 } from "@/lib/frequency-rank";
 import {
+  type DateAddedFilter,
+  DATE_ADDED_FILTER_OPTIONS,
+} from "@/lib/date-added-filter";
+import {
   type EntryTypeFilter,
   ENTRY_TYPE_FILTER_OPTIONS,
 } from "@/lib/word-entry";
@@ -43,6 +47,10 @@ interface MyWordsFiltersProps {
   onFrequencyFilterChange: (value: FrequencyBand) => void;
   /** Phrases are not in CoCA — hide the frequency filter. */
   hideFrequencyFilter?: boolean;
+  /** My collections only — filter by when the word was added. */
+  showDateAddedFilter?: boolean;
+  dateAddedFilter?: DateAddedFilter;
+  onDateAddedFilterChange?: (value: DateAddedFilter) => void;
   categoryFilter: string;
   onCategoryFilterChange: (value: string) => void;
   sortBy: WordSort;
@@ -69,6 +77,9 @@ export function MyWordsFilters({
   frequencyFilter,
   onFrequencyFilterChange,
   hideFrequencyFilter = false,
+  showDateAddedFilter = false,
+  dateAddedFilter = "all",
+  onDateAddedFilterChange,
   categoryFilter,
   onCategoryFilterChange,
   sortBy,
@@ -88,6 +99,7 @@ export function MyWordsFilters({
     statusFilter !== "all" ||
     entryTypeFilter !== "all" ||
     (!hideFrequencyFilter && frequencyFilter !== "all") ||
+    (showDateAddedFilter && dateAddedFilter !== "all") ||
     (categoryFilter !== "all" && !categoryLocked);
 
   const hasNonDefaultSort = sortBy !== "frequency";
@@ -101,6 +113,7 @@ export function MyWordsFilters({
     onStatusFilterChange("all");
     onEntryTypeFilterChange("all");
     onFrequencyFilterChange("all");
+    onDateAddedFilterChange?.("all");
     if (!categoryLocked) onCategoryFilterChange("all");
   };
 
@@ -146,8 +159,12 @@ export function MyWordsFilters({
         <div className="rounded-xl border bg-muted/30 p-3 space-y-2 animate-in fade-in slide-in-from-top-1 duration-150">
           <div
             className={cn(
-              "grid grid-cols-1 gap-2",
-              hideFrequencyFilter ? "sm:grid-cols-3" : "sm:grid-cols-2 lg:grid-cols-4"
+              "grid grid-cols-1 gap-2 sm:grid-cols-2",
+              hideFrequencyFilter && !showDateAddedFilter
+                ? "lg:grid-cols-3"
+                : hideFrequencyFilter || !showDateAddedFilter
+                  ? "lg:grid-cols-4"
+                  : "lg:grid-cols-3 xl:grid-cols-5"
             )}
           >
             <FilterField label="Status">
@@ -191,6 +208,30 @@ export function MyWordsFilters({
                 </SelectContent>
               </Select>
             </FilterField>
+
+            {showDateAddedFilter && onDateAddedFilterChange && (
+              <FilterField label="Date added">
+                <Select
+                  value={dateAddedFilter}
+                  onValueChange={(v) =>
+                    onDateAddedFilterChange(v as DateAddedFilter)
+                  }
+                >
+                  <SelectTrigger className="w-full h-9 rounded-lg bg-background">
+                    <SelectValue>
+                      {labelFor(DATE_ADDED_FILTER_OPTIONS, dateAddedFilter)}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {DATE_ADDED_FILTER_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </FilterField>
+            )}
 
             {!hideFrequencyFilter && (
               <FilterField label="CoCA frequency">
@@ -287,6 +328,12 @@ export function MyWordsFilters({
             <FilterChip
               label={labelFor(FREQUENCY_BAND_OPTIONS, frequencyFilter)}
               onClear={() => onFrequencyFilterChange("all")}
+            />
+          )}
+          {showDateAddedFilter && dateAddedFilter !== "all" && (
+            <FilterChip
+              label={labelFor(DATE_ADDED_FILTER_OPTIONS, dateAddedFilter)}
+              onClear={() => onDateAddedFilterChange?.("all")}
             />
           )}
           {categoryFilter !== "all" && !categoryLocked && (

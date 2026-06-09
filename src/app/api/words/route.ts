@@ -7,6 +7,11 @@ import {
   isValidWordSort,
 } from "@/lib/frequency-rank";
 import {
+  type DateAddedFilter,
+  dateAddedFilterBounds,
+  isValidDateAddedFilter,
+} from "@/lib/date-added-filter";
+import {
   type EntryTypeFilter,
   applyEntryTypeFilter,
   isValidEntryTypeFilter,
@@ -66,6 +71,7 @@ async function getMyWords(request: NextRequest) {
   const frequencyParam = params.get("frequency") ?? "all";
   const entryTypeParam = params.get("entry_type") ?? "all";
   const sortParam = params.get("sort") ?? "added";
+  const dateAddedParam = params.get("date_added") ?? "all";
   const frequency: FrequencyBand = isValidFrequencyBand(frequencyParam)
     ? frequencyParam
     : "all";
@@ -73,6 +79,9 @@ async function getMyWords(request: NextRequest) {
     ? entryTypeParam
     : "all";
   const sort: WordSort = isValidWordSort(sortParam) ? sortParam : "added";
+  const dateAdded: DateAddedFilter = isValidDateAddedFilter(dateAddedParam)
+    ? dateAddedParam
+    : "all";
   const effectiveFrequency =
     entryType === "phrase" || entryType === "sentence_pattern"
       ? ("all" as const)
@@ -106,6 +115,14 @@ async function getMyWords(request: NextRequest) {
 
   if (effectiveFrequency !== "all") {
     query = applyFrequencyFilter(query, effectiveFrequency, "word.rank");
+  }
+
+  const addedBounds = dateAddedFilterBounds(dateAdded);
+  if (addedBounds?.gte) {
+    query = query.gte("created_at", addedBounds.gte);
+  }
+  if (addedBounds?.lt) {
+    query = query.lt("created_at", addedBounds.lt);
   }
 
   /* `ids_only` short-circuits sort + pagination — used by bulk-select "all filtered". */
