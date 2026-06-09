@@ -10,6 +10,8 @@ import {
   type EntryTypeFilter,
   applyEntryTypeFilter,
   isValidEntryTypeFilter,
+  isStoredEntryType,
+  deriveStoredEntryType,
 } from "@/lib/word-entry";
 
 function applyFrequencyBandFilter<
@@ -72,7 +74,9 @@ async function getMyWords(request: NextRequest) {
     : "all";
   const sort: WordSort = isValidWordSort(sortParam) ? sortParam : "added";
   const effectiveFrequency =
-    entryType === "phrase" ? ("all" as const) : frequency;
+    entryType === "phrase" || entryType === "sentence_pattern"
+      ? ("all" as const)
+      : frequency;
 
   const idsOnly =
     params.get("ids_only") === "1" || params.get("ids_only") === "true";
@@ -98,7 +102,7 @@ async function getMyWords(request: NextRequest) {
     query = query.eq("word.category", category);
   }
 
-  query = applyEntryTypeFilter(query, entryType, "word.word");
+  query = applyEntryTypeFilter(query, entryType, "word.entry_type");
 
   if (effectiveFrequency !== "all") {
     query = applyFrequencyFilter(query, effectiveFrequency, "word.rank");
@@ -200,7 +204,9 @@ async function getCorpusWords(request: NextRequest) {
     : "all";
   const sort: WordSort = isValidWordSort(sortParam) ? sortParam : "frequency";
   const effectiveFrequency =
-    entryType === "phrase" ? ("all" as const) : frequency;
+    entryType === "phrase" || entryType === "sentence_pattern"
+      ? ("all" as const)
+      : frequency;
   const page = Math.max(1, parseInt(params.get("page") ?? "1", 10));
   const limit = Math.min(100, Math.max(1, parseInt(params.get("limit") ?? "20", 10)));
   const offset = (page - 1) * limit;
@@ -221,7 +227,7 @@ async function getCorpusWords(request: NextRequest) {
     query = query.ilike("word", `%${q}%`);
   }
 
-  query = applyEntryTypeFilter(query, entryType, "word");
+  query = applyEntryTypeFilter(query, entryType, "entry_type");
 
   if (effectiveFrequency !== "all") {
     query = applyFrequencyFilter(query, effectiveFrequency);
@@ -296,10 +302,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const entry_type = isStoredEntryType(body.entry_type)
+      ? body.entry_type
+      : deriveStoredEntryType(word);
+
     const { data, error } = await supabase
       .from("words")
       .insert({
         word: word.trim().toLowerCase(),
+        entry_type,
         definition: definition ?? "",
         translation_zh: translation_zh ?? "",
         ipa: ipa ?? "",

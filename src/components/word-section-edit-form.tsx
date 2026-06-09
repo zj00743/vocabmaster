@@ -3,8 +3,18 @@
 import { Volume2, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { CocaOrCustomBadge } from "@/components/word-entry-badges";
-import { isPhraseEntry } from "@/lib/word-entry";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  type EntryType,
+  isPhraseEntry,
+  entryTypeBadgeLabel,
+} from "@/lib/word-entry";
 import type { WordEditSectionSlug } from "@/lib/word-section-meta";
 import type { SectionFieldValues } from "@/lib/word-section-save";
 import type { WordWithProgress } from "@/lib/types";
@@ -122,7 +132,29 @@ export function WordSectionEditForm({
               placeholder="e.g. academic"
             />
           </label>
-          <CocaOrCustomBadge rank={word.rank} className="text-sm px-3 py-0.5" />
+
+          <label className="flex min-w-[7rem] max-w-sm flex-col gap-1.5 text-xs text-muted-foreground">
+            Card type
+            <Select
+              value={values.entryType}
+              onValueChange={(v) =>
+                v && onChange({ entryType: v as EntryType })
+              }
+            >
+              <SelectTrigger className="h-10 text-sm">
+                <SelectValue>
+                  {entryTypeBadgeLabel(values.entryType)}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="word">Word</SelectItem>
+                <SelectItem value="phrase">Phrase</SelectItem>
+                <SelectItem value="sentence_pattern">
+                  Sentence pattern
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </label>
         </div>
       );
 

@@ -5,10 +5,11 @@ import Link from "next/link";
 import { BookOpen, Eye, EyeOff, Pencil, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CocaOrCustomBadge } from "@/components/word-entry-badges";
+import { WordTypeBadge } from "@/components/word-entry-badges";
 import {
   entryBlankSlotChWidths,
   isPhraseEntry,
+  resolveEntryType,
 } from "@/lib/word-entry";
 import { cn } from "@/lib/utils";
 import { wordImageEditPath } from "@/lib/word-section-meta";
@@ -206,6 +207,9 @@ export function Flashcard({
 
   const [wordVisible, setWordVisible] = useState(false);
   const isPhrase = isPhraseEntry(word.word);
+  /* Sentence patterns are abstract — no illustration. */
+  const isSentencePattern =
+    resolveEntryType(word.word, word.entry_type) === "sentence_pattern";
   const blankSlotWidths = useMemo(
     () => entryBlankSlotChWidths(word.word),
     [word.word]
@@ -291,6 +295,7 @@ export function Flashcard({
 
   const frontFaceBody = (
     <>
+      {!isSentencePattern && (
       <div
         className={cn(
           "relative w-full aspect-[16/10] bg-muted/40 flex items-center justify-center isolate group",
@@ -343,6 +348,7 @@ export function Flashcard({
           </Link>
         ) : null}
       </div>
+      )}
 
       <div
         className={cn(
@@ -360,8 +366,10 @@ export function Flashcard({
                 {word.category}
               </Badge>
             ) : null}
-            <CocaOrCustomBadge
+            <WordTypeBadge
+              word={word.word}
               rank={word.rank}
+              entryType={word.entry_type}
               className="text-sm px-3 py-0.5 font-sans"
             />
             {!isPhraseEntry(word.word) && word.part_of_speech?.trim() ? (

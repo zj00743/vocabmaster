@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS words (
   image_prompt TEXT,
   mnemonic TEXT,
   category TEXT,
+  entry_type TEXT CHECK (entry_type IS NULL OR entry_type IN ('word', 'phrase', 'sentence_pattern')),
   is_custom BOOLEAN NOT NULL DEFAULT false,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -65,6 +66,7 @@ CREATE INDEX IF NOT EXISTS idx_words_word_lower ON words(LOWER(word));
 CREATE INDEX IF NOT EXISTS idx_words_rank ON words(rank);
 CREATE INDEX IF NOT EXISTS idx_words_category ON words(category);
 CREATE INDEX IF NOT EXISTS idx_words_is_custom ON words(is_custom);
+CREATE INDEX IF NOT EXISTS idx_words_entry_type ON words(entry_type);
 
 CREATE INDEX IF NOT EXISTS idx_learning_progress_word_id ON learning_progress(word_id);
 CREATE INDEX IF NOT EXISTS idx_learning_progress_status ON learning_progress(status);

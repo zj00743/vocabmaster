@@ -22,8 +22,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { AppShell } from "@/components/app-shell";
-import { CocaOrCustomBadge } from "@/components/word-entry-badges";
-import { isPhraseEntry } from "@/lib/word-entry";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { WordTypeBadge } from "@/components/word-entry-badges";
+import { isPhraseEntry, type EntryType } from "@/lib/word-entry";
 import { Flashcard } from "@/components/flashcard";
 import {
   CustomWordDraftDialog,
@@ -41,6 +47,53 @@ function isUuid(id: unknown): id is string {
   return (
     typeof id === "string" &&
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+  );
+}
+
+const MANUAL_ADD_OPTIONS: { type: EntryType; label: string }[] = [
+  { type: "word", label: "Add word manually" },
+  { type: "phrase", label: "Add phrase" },
+  { type: "sentence_pattern", label: "Add sentence pattern" },
+];
+
+/** "Add manually" split into a type picker (word / phrase / sentence pattern). */
+function ManualAddMenu({
+  saving,
+  disabled,
+  onPick,
+  className,
+}: {
+  saving: boolean;
+  disabled: boolean;
+  onPick: (entryType: EntryType) => void;
+  className?: string;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            type="button"
+            className={cn("shrink-0", className)}
+            disabled={disabled}
+          />
+        }
+      >
+        {saving ? (
+          <Loader2 className="size-4 animate-spin mr-1.5" />
+        ) : (
+          <Plus className="size-4 mr-1.5" />
+        )}
+        Add manually
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" side="bottom">
+        {MANUAL_ADD_OPTIONS.map((opt) => (
+          <DropdownMenuItem key={opt.type} onClick={() => onPick(opt.type)}>
+            {opt.label}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -181,8 +234,9 @@ export default function SearchPage() {
 
   /* Manual add creates a minimal custom card and drops the user on the word
      detail page (same destination as tapping a word in My Words), where they
-     fill in the sections via the inline edit pages. */
-  const handleAddManually = async () => {
+     fill in the sections via the inline edit pages. The chosen entry type
+     (word / phrase / sentence pattern) is stored on the card. */
+  const handleAddManually = async (entryType: EntryType) => {
     const lemma = query.trim();
     if (!lemma) return;
     setSavingKey(lemma);
@@ -190,7 +244,7 @@ export default function SearchPage() {
       const wordRes = await fetch("/api/words", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ word: lemma }),
+        body: JSON.stringify({ word: lemma, entry_type: entryType }),
       });
       if (!wordRes.ok) {
         const j = (await wordRes.json().catch(() => ({}))) as { error?: string };
@@ -375,7 +429,7 @@ export default function SearchPage() {
   return (
     <AppShell>
       <div className="px-4 py-6 md:px-8 md:py-8 max-w-2xl mx-auto w-full space-y-6">
-        <h1 className="text-2xl font-bold tracking-tight">Add Word</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Add new</h1>
 
         <div className="relative">
           <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
@@ -423,19 +477,12 @@ export default function SearchPage() {
                 </span>{" "}
                 is not in the word bank. Add it to My Words as a custom card.
               </p>
-              <Button
-                type="button"
-                className="shrink-0 w-full sm:w-auto"
+              <ManualAddMenu
+                saving={savingKey === query.trim()}
                 disabled={savingKey === query.trim() || generating}
-                onClick={() => void handleAddManually()}
-              >
-                {savingKey === query.trim() ? (
-                  <Loader2 className="size-4 animate-spin mr-1.5" />
-                ) : (
-                  <Plus className="size-4 mr-1.5" />
-                )}
-                Add manually
-              </Button>
+                onPick={(t) => void handleAddManually(t)}
+                className="w-full sm:w-auto"
+              />
             </CardContent>
           </Card>
         )}
@@ -455,8 +502,10 @@ export default function SearchPage() {
                             {word.part_of_speech}
                           </span>
                         ) : null}
-                        <CocaOrCustomBadge
+                        <WordTypeBadge
+                          word={word.word}
                           rank={word.rank}
+                          entryType={word.entry_type}
                           className="text-[10px] px-1.5 py-0"
                         />
                       </div>
@@ -496,18 +545,11 @@ export default function SearchPage() {
               &quot;{query.trim()}&quot; is not in the word bank.
             </p>
             <div className="flex flex-col items-center gap-2 sm:flex-row sm:justify-center">
-              <Button
-                type="button"
+              <ManualAddMenu
+                saving={savingKey === query.trim()}
                 disabled={generating || savingKey === query.trim()}
-                onClick={() => void handleAddManually()}
-              >
-                {savingKey === query.trim() ? (
-                  <Loader2 className="size-4 animate-spin mr-1.5" />
-                ) : (
-                  <Plus className="size-4 mr-1.5" />
-                )}
-                Add manually
-              </Button>
+                onPick={(t) => void handleAddManually(t)}
+              />
               <Button
                 type="button"
                 variant="outline"

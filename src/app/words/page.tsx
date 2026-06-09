@@ -67,10 +67,13 @@ function WordsPageInner() {
   const [hasMore, setHasMore] = useState(true);
   const [filteredTotal, setFilteredTotal] = useState(0);
   const limit = 20;
-  const phrasesOnly = entryTypeFilter === "phrase";
+  /* Phrases and sentence patterns are not in CoCA — hide CoCA frequency. */
+  const phrasesOnly =
+    entryTypeFilter === "phrase" || entryTypeFilter === "sentence_pattern";
 
   useEffect(() => {
-    if (entryTypeFilter !== "phrase") return;
+    if (entryTypeFilter !== "phrase" && entryTypeFilter !== "sentence_pattern")
+      return;
     setFrequencyFilter((f) => (f !== "all" ? "all" : f));
     setSortBy((s) => (s === "frequency" ? "added" : s));
   }, [entryTypeFilter]);
@@ -354,7 +357,7 @@ function WordsPageInner() {
         <div className="flex items-start justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">
-              {browseCategory ? `Category: ${browseCategory}` : "My Words"}
+              {browseCategory ? `Category: ${browseCategory}` : "My collections"}
             </h1>
             {!browseCorpusInCategory && (
               <p className="text-xs text-muted-foreground mt-1">

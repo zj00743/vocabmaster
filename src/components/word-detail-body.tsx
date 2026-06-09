@@ -5,8 +5,8 @@ import { Volume2, ExternalLink, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { CocaOrCustomBadge } from "@/components/word-entry-badges";
-import { isPhraseEntry } from "@/lib/word-entry";
+import { WordTypeBadge } from "@/components/word-entry-badges";
+import { isPhraseEntry, resolveEntryType } from "@/lib/word-entry";
 import type { WordWithProgress } from "@/lib/types";
 import { normalizeWord, splitStoredDefinitionLines, definitionToEditLines, editLinesToDefinition } from "@/lib/word-utils";
 import { cn } from "@/lib/utils";
@@ -170,7 +170,6 @@ function FlashcardEditableListSection({
   sect,
   browseEdit,
   placeholder,
-  emptyBrowse,
   draftText,
   initialLimit,
 }: {
@@ -181,7 +180,6 @@ function FlashcardEditableListSection({
   sect?: WordCardSectionEditProps;
   browseEdit?: WordCardBrowseEditProps;
   placeholder: string;
-  emptyBrowse: string;
   draftText?: string;
   initialLimit: number;
 }) {
@@ -240,11 +238,7 @@ function FlashcardEditableListSection({
           listClassName={cn(fcListClass, "text-foreground/85")}
           renderItem={(item) => item}
         />
-      ) : (
-        <p className="text-[15px] leading-snug text-muted-foreground font-sans italic">
-          {emptyBrowse}
-        </p>
-      )}
+      ) : null}
     </FlashcardSection>
   );
 }
@@ -289,6 +283,8 @@ export function WordDetailBody({
 }: WordDetailBodyProps) {
   const word = normalizeWord(raw);
   const isPhrase = isPhraseEntry(word.word);
+  const isSentencePattern =
+    resolveEntryType(word.word, word.entry_type) === "sentence_pattern";
   const youglish = `https://youglish.com/pronounce/${encodeURIComponent(word.word)}/english`;
   const fc = variant === "flashcard";
   const sect = fc && sectionEdit ? sectionEdit : undefined;
@@ -316,7 +312,7 @@ export function WordDetailBody({
           {statusBanner}
         </p>
       )}
-      {showImageBlock && (
+      {showImageBlock && !isSentencePattern && (
         <>
           <div
             className={cn(
@@ -466,8 +462,10 @@ export function WordDetailBody({
                     placeholder="e.g. academic"
                   />
                 </label>
-                <CocaOrCustomBadge
+                <WordTypeBadge
+                  word={word.word}
                   rank={word.rank}
+                  entryType={word.entry_type}
                   className="text-sm px-3 py-0.5 font-sans self-center mt-6"
                 />
                 {word.word_family?.trim() ? (
@@ -531,8 +529,10 @@ export function WordDetailBody({
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-              <CocaOrCustomBadge
+              <WordTypeBadge
+                word={word.word}
                 rank={word.rank}
+                entryType={word.entry_type}
                 className="text-sm px-3 py-0.5 font-sans"
               />
               {word.category?.trim() && (
@@ -699,12 +699,7 @@ export function WordDetailBody({
                         ? uniqueDefinitionBullets(hint)
                         : [];
                   if (bullets.length === 0) {
-                    return (
-                      <p className="text-[15px] leading-[1.55] text-muted-foreground font-sans italic">
-                        No English gloss yet. Review auto-enriches from
-                        Merriam-Webster when possible.
-                      </p>
-                    );
+                    return null;
                   }
                   return (
                     <ul
@@ -724,13 +719,7 @@ export function WordDetailBody({
                   word.translation_zh ?? ""
                 );
                 if (bullets.length === 0) {
-                  return (
-                    <p className="text-[15px] leading-[1.55] text-muted-foreground font-sans">
-                      No Chinese translation yet. Review auto-enriches when
-                      possible, or add OPENAI_API_KEY for higher-quality
-                      Chinese.
-                    </p>
-                  );
+                  return null;
                 }
                 return (
                   <ul
@@ -746,45 +735,6 @@ export function WordDetailBody({
                 );
               })()}
             </FlashcardSection>
-
-            <FlashcardEditableListSection
-              title="Synonyms"
-              sectionId="back_synonyms"
-              field="synonyms"
-              items={word.synonyms}
-              sect={sect}
-              browseEdit={browse}
-              placeholder="e.g. happy, cheerful"
-              emptyBrowse="No synonyms yet · tap pencil to add"
-              draftText={relationListDraftText?.synonyms}
-              initialLimit={3}
-            />
-
-            <FlashcardEditableListSection
-              title="Antonyms"
-              sectionId="back_antonyms"
-              field="antonyms"
-              items={word.antonyms}
-              sect={sect}
-              browseEdit={browse}
-              placeholder="e.g. sad, bleak"
-              emptyBrowse="No antonyms yet · tap pencil to add"
-              draftText={relationListDraftText?.antonyms}
-              initialLimit={3}
-            />
-
-            <FlashcardEditableListSection
-              title="Collocations"
-              sectionId="back_collocations"
-              field="collocations"
-              items={word.collocations}
-              sect={sect}
-              browseEdit={browse}
-              placeholder="e.g. make a decision, strong wind"
-              emptyBrowse="No collocations yet · tap pencil to add"
-              draftText={relationListDraftText?.collocations}
-              initialLimit={5}
-            />
 
             {sect || browse ? (
               <FlashcardSection
@@ -848,6 +798,42 @@ export function WordDetailBody({
                 </ul>
               </FlashcardSection>
             ) : null}
+
+            <FlashcardEditableListSection
+              title="Synonyms"
+              sectionId="back_synonyms"
+              field="synonyms"
+              items={word.synonyms}
+              sect={sect}
+              browseEdit={browse}
+              placeholder="e.g. happy, cheerful"
+              draftText={relationListDraftText?.synonyms}
+              initialLimit={3}
+            />
+
+            <FlashcardEditableListSection
+              title="Antonyms"
+              sectionId="back_antonyms"
+              field="antonyms"
+              items={word.antonyms}
+              sect={sect}
+              browseEdit={browse}
+              placeholder="e.g. sad, bleak"
+              draftText={relationListDraftText?.antonyms}
+              initialLimit={3}
+            />
+
+            <FlashcardEditableListSection
+              title="Collocations"
+              sectionId="back_collocations"
+              field="collocations"
+              items={word.collocations}
+              sect={sect}
+              browseEdit={browse}
+              placeholder="e.g. make a decision, strong wind"
+              draftText={relationListDraftText?.collocations}
+              initialLimit={5}
+            />
 
             {word.word.trim() ? (
               <FlashcardSection title="External resource">
@@ -988,7 +974,12 @@ export function WordDetailBody({
 
       {!fc && (
         <div className="flex flex-wrap gap-2 items-center">
-          <CocaOrCustomBadge rank={word.rank} className="font-sans text-xs" />
+          <WordTypeBadge
+            word={word.word}
+            rank={word.rank}
+            entryType={word.entry_type}
+            className="font-sans text-xs"
+          />
           {word.word_family?.trim() && (
             <Badge variant="secondary" className="font-sans text-xs">
               Family: {word.word_family}

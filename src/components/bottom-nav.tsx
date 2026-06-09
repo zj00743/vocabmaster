@@ -25,8 +25,8 @@ import { isWordSectionEditPath } from "@/lib/word-section-meta";
 const tabs = [
   { href: "/", label: "Home", icon: LayoutDashboard },
   { href: "/review", label: "Review", icon: BookOpen },
-  { href: "/search", label: "Add Word", icon: Search },
-  { href: "/words", label: "My Words", icon: BookMarked },
+  { href: "/search", label: "Add new", icon: Search },
+  { href: "/words", label: "My collections", icon: BookMarked },
 ] as const;
 
 const moreItems = [

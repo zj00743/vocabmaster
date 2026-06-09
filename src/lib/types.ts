@@ -16,6 +16,8 @@ export interface Word {
   image_prompt: string | null;
   mnemonic: string | null;
   category: string | null;
+  /** "word" | "phrase" | "sentence_pattern"; null on legacy rows (derive from text). */
+  entry_type?: string | null;
   is_custom: boolean;
   created_at: string;
 }

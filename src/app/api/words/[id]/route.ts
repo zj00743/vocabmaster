@@ -54,7 +54,7 @@ export async function PATCH(
       'word', 'definition', 'translation_zh', 'ipa', 'part_of_speech',
       'example_sentences', 'synonyms', 'antonyms', 'collocations',
       'common_expressions',
-      'mnemonic', 'category', 'is_saved',
+      'mnemonic', 'category', 'is_saved', 'entry_type',
     ];
 
     const updates: Record<string, unknown> = {};

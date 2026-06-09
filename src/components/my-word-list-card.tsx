@@ -5,7 +5,7 @@ import { Check, Volume2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { CocaOrCustomBadge } from "@/components/word-entry-badges";
+import { WordTypeBadge } from "@/components/word-entry-badges";
 import { canPlayPronunciation, playPronunciation } from "@/lib/pronunciation";
 import { isPhraseEntry } from "@/lib/word-entry";
 import type { WordWithProgress } from "@/lib/types";
@@ -102,8 +102,10 @@ export function MyWordListCard({
           )}
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
-          <CocaOrCustomBadge
+          <WordTypeBadge
+            word={word.word}
             rank={word.rank}
+            entryType={word.entry_type}
             className="text-[10px] px-1.5 py-0"
           />
           {word.progress && (
