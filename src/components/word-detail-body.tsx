@@ -11,6 +11,8 @@ import type { WordWithProgress } from "@/lib/types";
 import { normalizeWord, splitStoredDefinitionLines, definitionToEditLines, editLinesToDefinition } from "@/lib/word-utils";
 import { cn } from "@/lib/utils";
 import { WordImageUrlForm } from "@/components/word-image-url-form";
+import { ExampleSentencesEditor } from "@/components/example-sentences-editor";
+import { ExampleSentenceText } from "@/components/example-sentence-text";
 import { playPronunciation } from "@/lib/pronunciation";
 import { externalDictionaryResources } from "@/lib/dictionary-links";
 import type {
@@ -764,26 +766,21 @@ export function WordDetailBody({
                 }
               >
                 {sect && sect.editingSectionId === "back_examples" ? (
-                  <label className="flex flex-col gap-1.5 text-xs font-sans text-muted-foreground">
-                    One per line
-                    <textarea
-                      spellCheck={true}
-                      value={word.example_sentences.join("\n")}
-                      onChange={(e) =>
-                        sect.onSectionFieldChange(
-                          "examples",
-                          e.target.value
-                        )
-                      }
-                      placeholder="Example sentence…"
-                      rows={5}
-                      className={inlineTextareaCn}
-                    />
-                  </label>
+                  <ExampleSentencesEditor
+                    value={word.example_sentences.join("\n")}
+                    onChange={(text) =>
+                      sect.onSectionFieldChange("examples", text)
+                    }
+                    hint="One per line · select words, then tap Highlight"
+                    rows={5}
+                    className={inlineTextareaCn}
+                  />
                 ) : word.example_sentences.length > 0 ? (
                   <ul className={cn(fcListClass, "text-foreground/80")}>
                     {word.example_sentences.map((s, i) => (
-                      <li key={i}>{s}</li>
+                      <li key={i}>
+                        <ExampleSentenceText text={s} />
+                      </li>
                     ))}
                   </ul>
                 ) : (
@@ -796,7 +793,9 @@ export function WordDetailBody({
               <FlashcardSection title="Example sentences">
                 <ul className={cn(fcListClass, "text-foreground/80")}>
                   {word.example_sentences.map((s, i) => (
-                    <li key={i}>{s}</li>
+                    <li key={i}>
+                      <ExampleSentenceText text={s} />
+                    </li>
                   ))}
                 </ul>
               </FlashcardSection>
@@ -969,7 +968,9 @@ export function WordDetailBody({
             )}
           >
             {word.example_sentences.map((s, i) => (
-              <li key={i}>{s}</li>
+              <li key={i}>
+                <ExampleSentenceText text={s} />
+              </li>
             ))}
           </ul>
         </div>

@@ -18,6 +18,7 @@ import {
 import type { WordEditSectionSlug } from "@/lib/word-section-meta";
 import type { SectionFieldValues } from "@/lib/word-section-save";
 import type { WordWithProgress } from "@/lib/types";
+import { ExampleSentencesEditor } from "@/components/example-sentences-editor";
 import { cn } from "@/lib/utils";
 import { playPronunciation } from "@/lib/pronunciation";
 
@@ -310,22 +311,21 @@ export function WordSectionEditForm({
 
     case "back_examples":
       return (
-        <label
-          className={cn(
-            "flex flex-col gap-1.5 text-xs text-muted-foreground font-sans",
-            full && "min-h-0 flex-1"
-          )}
-        >
-          One sentence per line
-          <textarea
-            spellCheck
-            value={values.examplesText}
-            onChange={(e) => onChange({ examplesText: e.target.value })}
-            placeholder="Example sentence…"
-            rows={full ? undefined : Math.min(12, Math.max(6, values.examplesText.split("\n").length + 3))}
-            className={full ? fullTextareaCn : boxedTextareaCn}
-          />
-        </label>
+        <ExampleSentencesEditor
+          value={values.examplesText}
+          onChange={(examplesText) => onChange({ examplesText })}
+          placeholder="Example sentence…"
+          full={full}
+          rows={
+            full
+              ? undefined
+              : Math.min(
+                  12,
+                  Math.max(6, values.examplesText.split("\n").length + 3)
+                )
+          }
+          className={full ? fullTextareaCn : boxedTextareaCn}
+        />
       );
 
     default:
