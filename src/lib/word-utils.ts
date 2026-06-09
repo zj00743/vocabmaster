@@ -114,24 +114,33 @@ export function frontHint(
   return "Tap to reveal the word.";
 }
 
-/** Card front cue: always the stored first EN sense when present (same as top back bullet); then optional API hint slice; never mnemonic when skipping. */
+/** Card front cue: first EN or 中文 sense when present; optional API hint for EN only. */
 export function flashcardFrontGlossDisplay(
   word: WordWithProgress,
-  opts?: { dictionaryHint?: string | null; rankShownOnCard?: boolean }
+  opts?: {
+    dictionaryHint?: string | null;
+    rankShownOnCard?: boolean;
+    lang?: "en" | "zh";
+  }
 ): string {
+  const lang = opts?.lang ?? "en";
+
+  if (lang === "zh") {
+    const firstZh = splitStoredDefinitionLines(
+      word.translation_zh ?? ""
+    )[0]?.trim();
+    return firstZh ?? "";
+  }
+
   const firstFromDefs = splitStoredDefinitionLines(word.definition ?? "")[0]?.trim();
   if (firstFromDefs) {
-    return firstFromDefs.length > 130
-      ? `${firstFromDefs.slice(0, 127)}…`
-      : firstFromDefs;
+    return firstFromDefs;
   }
   const dh = opts?.dictionaryHint?.trim();
   if (dh) {
     const fromHint = splitStoredDefinitionLines(dh)[0]?.trim();
     if (fromHint) {
-      return fromHint.length > 130
-        ? `${fromHint.slice(0, 127)}…`
-        : fromHint;
+      return fromHint;
     }
   }
   return frontHint(word, {

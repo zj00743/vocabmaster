@@ -116,15 +116,6 @@ export default function ReviewPage() {
     [queue, currentIndex]
   );
 
-  const handleWordImageUpdate = useCallback(
-    (wordId: string, imageUrl: string | null) => {
-      setQueue((q) =>
-        q.map((w) => (w.id === wordId ? { ...w, image_url: imageUrl } : w))
-      );
-    },
-    []
-  );
-
   const total = queue.length;
   const progressValue = total > 0 ? ((currentIndex + (finished ? 1 : 0)) / total) * 100 : 0;
   const currentWord = queue[currentIndex];
@@ -208,7 +199,6 @@ export default function ReviewPage() {
               onFlip={handleFlip}
               onRate={handleRate}
               enriching={enrichingId === currentWord.id}
-              onWordImageUpdate={handleWordImageUpdate}
               fixedRatingBar
               showRatingBar={false}
             />

@@ -2,7 +2,14 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { BookOpen, Eye, EyeOff, Pencil, Volume2 } from "lucide-react";
+import {
+  BookOpen,
+  CaseSensitive,
+  Eye,
+  EyeOff,
+  Pencil,
+  Volume2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { WordTypeBadge } from "@/components/word-entry-badges";
@@ -192,20 +199,26 @@ export function Flashcard({
     };
   }, [word.word, suppressDictionaryHints]);
 
+  const [frontDefinitionLang, setFrontDefinitionLang] = useState<"en" | "zh">(
+    "en"
+  );
+
   const displayGloss = useMemo(
     () =>
       flashcardFrontGlossDisplay(word, {
         dictionaryHint: suppressDictionaryHints ? null : remoteHintText,
         rankShownOnCard: word.rank != null,
+        lang: frontDefinitionLang,
       }),
-    [
-      word,
-      remoteHintText,
-      suppressDictionaryHints,
-    ]
+    [word, remoteHintText, suppressDictionaryHints, frontDefinitionLang]
   );
 
   const [wordVisible, setWordVisible] = useState(false);
+  /** Progressive disclosure: how many characters of the lemma are revealed. */
+  const [revealCount, setRevealCount] = useState(0);
+  const lemma = word.word;
+  const lemmaFullyRevealed =
+    wordVisible || revealCount >= lemma.length;
   const isPhrase = isPhraseEntry(word.word);
   /* Per-card image toggle (defaults off for sentence patterns). */
   const showImage = resolveShowImage(
@@ -220,6 +233,8 @@ export function Flashcard({
 
   useEffect(() => {
     setWordVisible(false);
+    setRevealCount(0);
+    setFrontDefinitionLang("en");
   }, [word.id]);
 
   const [speechOk, setSpeechOk] = useState(false);
@@ -301,8 +316,8 @@ export function Flashcard({
       {showImage && (
       <div
         className={cn(
-          "relative w-full aspect-[16/10] bg-muted/40 flex items-center justify-center isolate group",
-          !isPageLayout && "shrink-0 max-h-[46%] border-b"
+          "relative flex w-full items-center justify-center px-4 py-3 bg-muted/40 isolate group",
+          !isPageLayout && "shrink-0 border-b"
         )}
       >
         {activeSrc ? (
@@ -320,7 +335,7 @@ export function Flashcard({
                 return 2;
               })
             }
-            className="absolute inset-0 z-[1] h-full w-full object-cover [transform:translateZ(1px)]"
+            className="max-h-28 sm:max-h-32 w-auto max-w-full object-contain rounded-md"
           />
         ) : (
           <div className="flex flex-col items-center justify-center gap-2 px-4 py-8">
@@ -356,7 +371,9 @@ export function Flashcard({
       <div
         className={cn(
           "flex flex-col items-center text-center gap-4",
-          isPageLayout ? "px-4 py-6 sm:px-6 sm:py-8" : "flex-1 justify-center p-6 sm:p-8 min-h-0"
+          isPageLayout
+            ? "px-4 py-6 sm:px-6 sm:py-8"
+            : "flex-1 min-h-0 overflow-y-auto overscroll-contain p-6 sm:p-8"
         )}
       >
         <div className="flex flex-col items-center gap-3 w-full max-w-xl mx-auto">
@@ -383,34 +400,20 @@ export function Flashcard({
                 {word.part_of_speech}
               </Badge>
             ) : null}
-            {!isPhrase && (
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                className="font-sans shrink-0 size-10"
-                disabled={!canListen}
-                aria-label="Listen to pronunciation"
-                title={
-                  !canListen
-                    ? "Pronunciation not available"
-                    : word.pronunciation_url?.trim()
-                      ? "Play dictionary audio"
-                      : "Play pronunciation"
-                }
-                onClick={(e) => {
-                  e.stopPropagation();
-                  playPronunciation(word);
-                }}
-              >
-                <Volume2 className="size-4 shrink-0" aria-hidden />
-              </Button>
-            )}
           </div>
           <div className="flex flex-wrap items-center justify-center gap-3 w-full max-w-xl">
-            {wordVisible ? (
+            {lemmaFullyRevealed ? (
               <p className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground break-words font-sans text-center">
-                {word.word}
+                {lemma}
+              </p>
+            ) : revealCount > 0 ? (
+              <p className="text-2xl sm:text-3xl font-bold tracking-tight break-words font-sans text-center">
+                <span className="text-foreground">{lemma.slice(0, revealCount)}</span>
+                <span className="text-muted-foreground/45">
+                  {lemma
+                    .slice(revealCount)
+                    .replace(/[^\s]/g, "_")}
+                </span>
               </p>
             ) : blankSlotWidths.length > 0 ? (
               <div
@@ -429,54 +432,131 @@ export function Flashcard({
                 ))}
               </div>
             ) : null}
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              className="font-sans shrink-0 size-10 sm:size-11 rounded-xl"
-              aria-label={
-                wordVisible
-                  ? isPhrase
-                    ? "Hide phrase"
-                    : "Hide word"
-                  : isPhrase
-                    ? "Show phrase"
-                    : "Show word"
-              }
-              aria-pressed={wordVisible}
-              title={
-                wordVisible
-                  ? isPhrase
-                    ? "Hide phrase"
-                    : "Hide word"
-                  : isPhrase
-                    ? "Show phrase"
-                    : "Show word"
-              }
-              onClick={(e) => {
-                e.stopPropagation();
-                setWordVisible((v) => !v);
-              }}
-            >
-              {wordVisible ? (
-                <EyeOff className="size-5" aria-hidden />
-              ) : (
-                <Eye className="size-5" aria-hidden />
+            <div className="flex items-center gap-1.5 shrink-0">
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="font-sans size-10 sm:size-11 rounded-xl"
+                disabled={lemmaFullyRevealed}
+                aria-label="Reveal next letter"
+                title="Reveal next letter"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setRevealCount((c) => Math.min(c + 1, lemma.length));
+                }}
+              >
+                <CaseSensitive className="size-5" aria-hidden />
+              </Button>
+              {!isPhrase && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="font-sans size-10 sm:size-11 rounded-xl"
+                  disabled={!canListen}
+                  aria-label="Listen to pronunciation"
+                  title={
+                    !canListen
+                      ? "Pronunciation not available"
+                      : word.pronunciation_url?.trim()
+                        ? "Play dictionary audio"
+                        : "Play pronunciation"
+                  }
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    playPronunciation(word);
+                  }}
+                >
+                  <Volume2 className="size-5 shrink-0" aria-hidden />
+                </Button>
               )}
-            </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="font-sans size-10 sm:size-11 rounded-xl"
+                aria-label={
+                  wordVisible
+                    ? isPhrase
+                      ? "Hide phrase"
+                      : "Hide word"
+                    : isPhrase
+                      ? "Show phrase"
+                      : "Show word"
+                }
+                aria-pressed={wordVisible}
+                title={
+                  wordVisible
+                    ? isPhrase
+                      ? "Hide phrase"
+                      : "Hide word"
+                    : isPhrase
+                      ? "Show phrase"
+                      : "Show word"
+                }
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (wordVisible) {
+                    setWordVisible(false);
+                    setRevealCount(0);
+                  } else {
+                    setWordVisible(true);
+                  }
+                }}
+              >
+                {wordVisible ? (
+                  <EyeOff className="size-5" aria-hidden />
+                ) : (
+                  <Eye className="size-5" aria-hidden />
+                )}
+              </Button>
+            </div>
           </div>
         </div>
-        <div className="w-full max-w-xl flex flex-col items-stretch">
-          <p
-            className={cn(
-              "text-foreground/90 leading-snug max-w-xl font-sans text-center",
-              isPageLayout
-                ? "text-lg sm:text-xl"
-                : "text-lg sm:text-xl line-clamp-6"
-            )}
-          >
-            {displayGloss}
-          </p>
+        <div className="w-full max-w-xl flex flex-col items-stretch gap-2.5">
+          <div className="flex justify-center">
+            <div className="inline-flex rounded-md border border-border/60 bg-muted/25 p-0.5 font-sans shrink-0">
+              <Button
+                type="button"
+                variant={
+                  frontDefinitionLang === "en" ? "secondary" : "ghost"
+                }
+                size="sm"
+                className="h-7 px-2.5 text-xs"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setFrontDefinitionLang("en");
+                }}
+              >
+                EN
+              </Button>
+              <Button
+                type="button"
+                variant={
+                  frontDefinitionLang === "zh" ? "secondary" : "ghost"
+                }
+                size="sm"
+                className="h-7 px-2.5 text-xs"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setFrontDefinitionLang("zh");
+                }}
+              >
+                中文
+              </Button>
+            </div>
+          </div>
+          {displayGloss ? (
+            <p
+              className={cn(
+                "text-foreground/90 leading-snug max-w-xl font-sans text-center",
+                "text-lg sm:text-xl"
+              )}
+            >
+              {displayGloss}
+            </p>
+          ) : null}
         </div>
       </div>
     </>
