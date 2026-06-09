@@ -725,7 +725,7 @@ export function WordDetailBody({
                   <ul
                     className={cn(
                       fcListClass,
-                      "text-primary font-medium min-h-[1.25rem]"
+                      "text-foreground/85 min-h-[1.25rem]"
                     )}
                   >
                     {bullets.map((line, i) => (
