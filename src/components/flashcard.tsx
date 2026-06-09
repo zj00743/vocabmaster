@@ -340,7 +340,7 @@ export function Flashcard({
                 return 2;
               })
             }
-            className="max-h-28 sm:max-h-32 w-auto max-w-full object-contain rounded-md"
+            className="max-h-44 sm:max-h-48 w-auto max-w-full object-contain rounded-md"
           />
         ) : (
           <div className="flex flex-col items-center justify-center gap-2 px-4 py-8">
