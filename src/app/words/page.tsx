@@ -112,6 +112,7 @@ function WordsPageInner() {
 
   const fetchWords = useCallback(
     async (pageNum: number) => {
+      const gen = ++fetchGenRef.current;
       setLoading(true);
       try {
         const params = new URLSearchParams({
@@ -138,6 +139,7 @@ function WordsPageInner() {
           }
         }
         const res = await fetch(`/api/words?${params}`);
+        if (gen !== fetchGenRef.current) return;
         if (res.ok) {
           const json = await res.json();
           const fetched = Array.isArray(json)
@@ -157,7 +159,7 @@ function WordsPageInner() {
       } catch {
         // API not available
       } finally {
-        setLoading(false);
+        if (gen === fetchGenRef.current) setLoading(false);
       }
     },
     [
@@ -194,6 +196,7 @@ function WordsPageInner() {
   }, [browseCorpusInCategory]);
 
   const skipPageFetchRef = useRef(false);
+  const fetchGenRef = useRef(0);
 
   useEffect(() => {
     skipPageFetchRef.current = true;
@@ -487,6 +490,7 @@ function WordsPageInner() {
           onCategoryFilterChange={setCategoryFilter}
           sortBy={sortBy}
           onSortByChange={setSortBy}
+          defaultSort={browseCorpusInCategory ? "frequency" : "added"}
           categories={myWordCategories}
           categoryLocked={!!browseCategory}
           searchPlaceholder={

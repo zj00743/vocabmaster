@@ -22,7 +22,7 @@ export const FREQUENCY_BAND_OPTIONS: {
 ];
 
 export const WORD_SORT_OPTIONS: { value: WordSort; label: string }[] = [
-  { value: "frequency", label: "CoCA frequency" },
+  { value: "frequency", label: "CoCA ranking" },
   { value: "alpha", label: "Alphabetic (A–Z)" },
   { value: "added", label: "Recently added" },
   { value: "last_reviewed", label: "Recently reviewed" },

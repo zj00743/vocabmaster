@@ -140,11 +140,10 @@ async function getMyWords(request: NextRequest) {
     return NextResponse.json({ ids, total: count ?? ids.length });
   }
 
+  /* Order parent `learning_progress` rows — use `word(col)` not `referencedTable`
+     (referencedTable only reorders the embedded array). */
   if (sort === "alpha") {
-    query = query.order("word", {
-      referencedTable: "word",
-      ascending: true,
-    });
+    query = query.order("word(word)", { ascending: true });
   } else if (sort === "added") {
     query = query.order("created_at", { ascending: false });
   } else if (sort === "last_reviewed") {
@@ -154,15 +153,8 @@ async function getMyWords(request: NextRequest) {
     });
   } else {
     query = query
-      .order("rank", {
-        referencedTable: "word",
-        ascending: true,
-        nullsFirst: false,
-      })
-      .order("word", {
-        referencedTable: "word",
-        ascending: true,
-      });
+      .order("word(rank)", { ascending: true, nullsFirst: false })
+      .order("word(word)", { ascending: true });
   }
 
   const { data, error, count } = await query.range(offset, offset + limit - 1);

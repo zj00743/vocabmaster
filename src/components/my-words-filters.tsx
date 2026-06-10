@@ -55,6 +55,8 @@ interface MyWordsFiltersProps {
   onCategoryFilterChange: (value: string) => void;
   sortBy: WordSort;
   onSortByChange: (value: WordSort) => void;
+  /** Context default — "added" for My collections, "frequency" for corpus browse. */
+  defaultSort?: WordSort;
   categories: CategoryOption[];
   categoryLocked?: boolean;
   searchPlaceholder?: string;
@@ -84,6 +86,7 @@ export function MyWordsFilters({
   onCategoryFilterChange,
   sortBy,
   onSortByChange,
+  defaultSort = "frequency",
   categories,
   categoryLocked = false,
   searchPlaceholder = "Search your words…",
@@ -102,7 +105,7 @@ export function MyWordsFilters({
     (showDateAddedFilter && dateAddedFilter !== "all") ||
     (categoryFilter !== "all" && !categoryLocked);
 
-  const hasNonDefaultSort = sortBy !== "frequency";
+  const hasNonDefaultSort = sortBy !== defaultSort;
 
   const categoryLabel =
     categoryFilter === "all"
@@ -234,7 +237,7 @@ export function MyWordsFilters({
             )}
 
             {!hideFrequencyFilter && (
-              <FilterField label="CoCA frequency">
+              <FilterField label="CoCA ranking">
                 <Select
                   value={frequencyFilter}
                   onValueChange={(v) =>
