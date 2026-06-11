@@ -2,6 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { normalizeImageUrlForStorage } from '@/lib/image-url';
 import { getTagsForWord } from '@/lib/tag-db';
+import {
+  formatWordSaveError,
+  normalizeEntryTypeForStorage,
+  normalizeLemmaForStorage,
+  validateEntryTypeLemma,
+  type EntryType,
+} from '@/lib/word-entry';
 
 export async function GET(
   _request: NextRequest,
@@ -83,6 +90,76 @@ export async function PATCH(
       );
     }
 
+    const { data: current, error: fetchError } = await supabase
+      .from('words')
+      .select('word, is_custom, entry_type')
+      .eq('id', id)
+      .single();
+
+    if (fetchError) {
+      if (fetchError.code === 'PGRST116') {
+        return NextResponse.json({ error: 'Word not found' }, { status: 404 });
+      }
+      return NextResponse.json({ error: fetchError.message }, { status: 500 });
+    }
+
+    if ('entry_type' in updates) {
+      updates.entry_type = normalizeEntryTypeForStorage(
+        updates.entry_type,
+        typeof updates.word === 'string' ? updates.word : current.word
+      );
+    }
+
+    if (typeof updates.word === 'string') {
+      const normalized = normalizeLemmaForStorage(updates.word);
+      const entryType = (
+        'entry_type' in updates
+          ? updates.entry_type
+          : current.entry_type
+      ) as EntryType | null;
+      const validationError = validateEntryTypeLemma(
+        entryType === 'expression' ? 'expression' : 'word',
+        normalized
+      );
+      if (validationError) {
+        return NextResponse.json({ error: validationError }, { status: 400 });
+      }
+      updates.word = normalized;
+
+      const { data: duplicates, error: dupError } = await supabase
+        .from('words')
+        .select('id, word')
+        .ilike('word', normalized)
+        .neq('id', id)
+        .limit(1);
+
+      if (dupError) {
+        return NextResponse.json({ error: dupError.message }, { status: 500 });
+      }
+
+      const duplicate = duplicates?.[0];
+      if (duplicate) {
+        return NextResponse.json(
+          {
+            error: formatWordSaveError(
+              'duplicate key value violates unique constraint',
+              normalized,
+              duplicate.word
+            ),
+          },
+          { status: 409 }
+        );
+      }
+    } else if ('entry_type' in updates && updates.entry_type === 'word') {
+      const validationError = validateEntryTypeLemma(
+        'word',
+        String(current.word ?? '')
+      );
+      if (validationError) {
+        return NextResponse.json({ error: validationError }, { status: 400 });
+      }
+    }
+
     const { data, error } = await supabase
       .from('words')
       .update(updates)
@@ -94,7 +171,18 @@ export async function PATCH(
       if (error.code === 'PGRST116') {
         return NextResponse.json({ error: 'Word not found' }, { status: 404 });
       }
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      const msg = error.message ?? 'Update failed';
+      const status = msg.toLowerCase().includes('duplicate') ? 409 : 500;
+      return NextResponse.json(
+        {
+          error: formatWordSaveError(
+            msg,
+            typeof updates.word === 'string' ? updates.word : current.word,
+            current.word
+          ),
+        },
+        { status }
+      );
     }
 
     return NextResponse.json(data);

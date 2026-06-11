@@ -16,8 +16,10 @@ import {
 import {
   buildSectionPatchPayload,
   sectionFieldsFromWord,
+  validateSectionFields,
   type SectionFieldValues,
 } from "@/lib/word-section-save";
+import { formatWordSaveError } from "@/lib/word-entry";
 import type { WordWithProgress } from "@/lib/types";
 import { normalizeWord } from "@/lib/word-utils";
 
@@ -132,6 +134,11 @@ function WordSectionEditInner() {
 
   const handleSave = async () => {
     if (!word || !values || !sectionId) return;
+    const validationError = validateSectionFields(sectionId, values);
+    if (validationError) {
+      toast.error(validationError);
+      return;
+    }
     setSaving(true);
     try {
       const payload = buildSectionPatchPayload(sectionId, word, values);
@@ -142,8 +149,13 @@ function WordSectionEditInner() {
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
+        const msg =
+          typeof err?.error === "string" ? err.error : "Save failed";
         toast.error(
-          typeof err?.error === "string" ? err.error : "Save failed"
+          formatWordSaveError(
+            msg,
+            typeof payload.word === "string" ? payload.word : values.lemma
+          )
         );
         return;
       }

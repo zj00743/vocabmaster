@@ -3,8 +3,11 @@ import type { WordWithProgress } from "@/lib/types";
 import { definitionToEditLines, editLinesToDefinition } from "@/lib/word-utils";
 import {
   type EntryType,
+  lemmasEqualForStorage,
+  normalizeLemmaForStorage,
   resolveEntryType,
   resolveShowImage,
+  validateEntryTypeLemma,
 } from "@/lib/word-entry";
 
 export type SectionFieldValues = {
@@ -46,6 +49,14 @@ function linesFromText(text: string): string[] {
     .filter(Boolean);
 }
 
+export function validateSectionFields(
+  sectionId: WordEditSectionSlug,
+  values: SectionFieldValues
+): string | null {
+  if (sectionId !== "back_header") return null;
+  return validateEntryTypeLemma(values.entryType, values.lemma);
+}
+
 export function buildSectionPatchPayload(
   sectionId: WordEditSectionSlug,
   word: WordWithProgress,
@@ -60,7 +71,13 @@ export function buildSectionPatchPayload(
         show_image: values.showImage,
       };
       if (word.is_custom) {
-        payload.word = values.lemma.trim() || word.word;
+        const lemma = values.lemma.trim() || word.word;
+        // Only touch `word` when the lemma text changed. Re-sending a
+        // lowercased copy on entry_type-only edits can falsely collide with
+        // another row (e.g. "Design" → "design").
+        if (!lemmasEqualForStorage(lemma, word.word ?? "")) {
+          payload.word = normalizeLemmaForStorage(lemma);
+        }
       }
       return payload;
     }

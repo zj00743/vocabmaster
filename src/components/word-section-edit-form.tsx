@@ -49,7 +49,8 @@ export function WordSectionEditForm({
   layout?: "default" | "fullscreen";
 }) {
   const full = layout === "fullscreen";
-  const isPhrase = isPhraseEntry(word.word);
+  const isExpression =
+    values.entryType === "expression" || isPhraseEntry(values.lemma);
   const youglish = `https://youglish.com/pronounce/${encodeURIComponent(word.word)}/english`;
 
   switch (sectionId) {
@@ -78,7 +79,7 @@ export function WordSectionEditForm({
                 {word.word}
               </p>
             )}
-            {!isPhrase ? (
+            {!isExpression ? (
               <label className="flex w-[7.5rem] flex-col gap-1.5 text-xs text-muted-foreground shrink-0">
                 POS
                 <Input
@@ -103,7 +104,7 @@ export function WordSectionEditForm({
                 placeholder="/…/"
               />
             </label>
-            {!isPhrase && (
+            {!isExpression && (
               <Button
                 type="button"
                 variant="ghost"

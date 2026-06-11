@@ -115,6 +115,46 @@ export function entryTypeLabel(type: EntryType): string {
   return entryTypeBadgeLabel(type);
 }
 
+/** Normalize lemma text for storage (matches POST /api/words). */
+export function normalizeLemmaForStorage(lemma: string): string {
+  return lemma.trim().toLowerCase();
+}
+
+/** True when two lemmas would persist as the same `words.word` value. */
+export function lemmasEqualForStorage(a: string, b: string): boolean {
+  return normalizeLemmaForStorage(a) === normalizeLemmaForStorage(b);
+}
+
+/** Client-side guard before PATCH/POST. */
+export function validateEntryTypeLemma(
+  entryType: EntryType,
+  lemma: string
+): string | null {
+  const trimmed = lemma.trim();
+  if (!trimmed) return "Word or expression cannot be empty";
+  if (entryType === "word" && /\s/.test(trimmed)) {
+    return "Words must be a single term without spaces. Shorten the text or keep it as an expression.";
+  }
+  return null;
+}
+
+export function formatWordSaveError(
+  message: string,
+  lemma?: string,
+  conflictingLemma?: string
+): string {
+  const m = message.toLowerCase();
+  if (m.includes("duplicate") || m.includes("unique")) {
+    const label = lemma?.trim() || "This text";
+    const conflict = conflictingLemma?.trim();
+    if (conflict && !lemmasEqualForStorage(label, conflict)) {
+      return `${label} matches an existing dictionary entry stored as "${conflict}". Search for "${conflict}" and use that card instead.`;
+    }
+    return `${label} is already in the dictionary as another card. Search for it and use that entry instead.`;
+  }
+  return message;
+}
+
 /** CoCA import rows have a numeric rank; custom / manual entries do not. */
 export function isInCocaBank(rank: number | null | undefined): boolean {
   return rank != null && Number.isFinite(rank);
