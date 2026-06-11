@@ -147,6 +147,20 @@ function WordSectionEditInner() {
         );
         return;
       }
+      if (sectionId === "back_header") {
+        const tagRes = await fetch(`/api/words/${word.id}/tags`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ tag_ids: values.tagIds }),
+        });
+        if (!tagRes.ok) {
+          const err = await tagRes.json().catch(() => ({}));
+          toast.error(
+            typeof err?.error === "string" ? err.error : "Could not save tags"
+          );
+          return;
+        }
+      }
       toast.success("Saved");
       router.push(`/words/${word.id}?tab=back`);
       router.refresh();

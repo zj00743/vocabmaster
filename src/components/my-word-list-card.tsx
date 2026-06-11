@@ -28,6 +28,8 @@ export function formatWordListDate(dateStr: string | null): string {
 
 interface MyWordListCardProps {
   word: WordWithProgress;
+  /** Desktop master-detail: highlight the open card. */
+  active?: boolean;
   onClick?: () => void;
   actions?: ReactNode;
   /** Selection mode: when true, render a checkbox and ignore `onClick` for the regular flashcard open. */
@@ -38,6 +40,7 @@ interface MyWordListCardProps {
 
 export function MyWordListCard({
   word,
+  active,
   onClick,
   actions,
   selectable,
@@ -52,6 +55,7 @@ export function MyWordListCard({
       className={cn(
         "w-full text-left",
         isInteractive && "cursor-pointer hover:ring-primary/20 transition-shadow",
+        active && !selectable && "ring-2 ring-primary/50 bg-primary/5",
         selectable && selected && "ring-2 ring-primary/60 bg-primary/5"
       )}
       onClick={handleClick}

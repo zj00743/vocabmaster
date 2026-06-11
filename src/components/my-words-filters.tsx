@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
-import { Search, ArrowUpDown, Filter, X } from "lucide-react";
+import { useMemo, useState, type ReactNode } from "react";
+import { Search, ArrowUpDown, Check, Filter, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,7 +17,6 @@ import {
   FREQUENCY_BAND_OPTIONS,
   WORD_SORT_OPTIONS,
   STATUS_FILTER_OPTIONS,
-  formatCategoryLabel,
 } from "@/lib/frequency-rank";
 import {
   type DateAddedFilter,
@@ -27,14 +26,11 @@ import {
   type EntryTypeFilter,
   ENTRY_TYPE_FILTER_OPTIONS,
 } from "@/lib/word-entry";
+import { TagTree } from "@/components/tag-tree";
+import type { TagTreeNode } from "@/lib/tags";
 import { cn } from "@/lib/utils";
 
 export type StatusFilter = (typeof STATUS_FILTER_OPTIONS)[number]["value"];
-
-interface CategoryOption {
-  category: string;
-  count: number;
-}
 
 interface MyWordsFiltersProps {
   search: string;
@@ -45,20 +41,19 @@ interface MyWordsFiltersProps {
   onEntryTypeFilterChange: (value: EntryTypeFilter) => void;
   frequencyFilter: FrequencyBand;
   onFrequencyFilterChange: (value: FrequencyBand) => void;
-  /** Phrases are not in CoCA — hide the frequency filter. */
   hideFrequencyFilter?: boolean;
-  /** My collections only — filter by when the word was added. */
   showDateAddedFilter?: boolean;
   dateAddedFilter?: DateAddedFilter;
   onDateAddedFilterChange?: (value: DateAddedFilter) => void;
-  categoryFilter: string;
-  onCategoryFilterChange: (value: string) => void;
+  tagFilter: string;
+  onTagFilterChange: (value: string) => void;
+  tagFilterExact: boolean;
+  onTagFilterExactChange: (value: boolean) => void;
   sortBy: WordSort;
   onSortByChange: (value: WordSort) => void;
-  /** Context default — "added" for My collections, "frequency" for corpus browse. */
   defaultSort?: WordSort;
-  categories: CategoryOption[];
-  categoryLocked?: boolean;
+  tagTree: TagTreeNode[];
+  tagLocked?: boolean;
   searchPlaceholder?: string;
 }
 
@@ -67,6 +62,18 @@ function labelFor<T extends { value: string; label: string }>(
   value: string
 ): string {
   return options.find((o) => o.value === value)?.label ?? value;
+}
+
+function flattenTree(nodes: TagTreeNode[]): TagTreeNode[] {
+  const out: TagTreeNode[] = [];
+  const walk = (list: TagTreeNode[]) => {
+    for (const n of list) {
+      out.push(n);
+      walk(n.children);
+    }
+  };
+  walk(nodes);
+  return out;
 }
 
 export function MyWordsFilters({
@@ -82,42 +89,44 @@ export function MyWordsFilters({
   showDateAddedFilter = false,
   dateAddedFilter = "all",
   onDateAddedFilterChange,
-  categoryFilter,
-  onCategoryFilterChange,
+  tagFilter,
+  onTagFilterChange,
+  tagFilterExact,
+  onTagFilterExactChange,
   sortBy,
   onSortByChange,
   defaultSort = "frequency",
-  categories,
-  categoryLocked = false,
+  tagTree,
+  tagLocked = false,
   searchPlaceholder = "Search your words…",
 }: MyWordsFiltersProps) {
   const [showFilters, setShowFilters] = useState(false);
   const [showSort, setShowSort] = useState(false);
+  const [tagSearch, setTagSearch] = useState("");
 
   const sortOptions = hideFrequencyFilter
     ? WORD_SORT_OPTIONS.filter((o) => o.value !== "frequency")
     : WORD_SORT_OPTIONS;
+
+  const flatTags = useMemo(() => flattenTree(tagTree), [tagTree]);
+  const activeTag = flatTags.find((t) => t.id === tagFilter) ?? null;
 
   const hasActiveFilters =
     statusFilter !== "all" ||
     entryTypeFilter !== "all" ||
     (!hideFrequencyFilter && frequencyFilter !== "all") ||
     (showDateAddedFilter && dateAddedFilter !== "all") ||
-    (categoryFilter !== "all" && !categoryLocked);
+    (tagFilter !== "all" && !tagLocked);
 
   const hasNonDefaultSort = sortBy !== defaultSort;
-
-  const categoryLabel =
-    categoryFilter === "all"
-      ? "All categories"
-      : formatCategoryLabel(categoryFilter);
 
   const clearFilters = () => {
     onStatusFilterChange("all");
     onEntryTypeFilterChange("all");
     onFrequencyFilterChange("all");
     onDateAddedFilterChange?.("all");
-    if (!categoryLocked) onCategoryFilterChange("all");
+    if (!tagLocked) onTagFilterChange("all");
+    onTagFilterExactChange(false);
   };
 
   const toggleFilters = () => {
@@ -159,17 +168,8 @@ export function MyWordsFilters({
       </div>
 
       {showFilters && (
-        <div className="rounded-xl border bg-muted/30 p-3 space-y-2 animate-in fade-in slide-in-from-top-1 duration-150">
-          <div
-            className={cn(
-              "grid grid-cols-1 gap-2 sm:grid-cols-2",
-              hideFrequencyFilter && !showDateAddedFilter
-                ? "lg:grid-cols-3"
-                : hideFrequencyFilter || !showDateAddedFilter
-                  ? "lg:grid-cols-4"
-                  : "lg:grid-cols-3 xl:grid-cols-5"
-            )}
-          >
+        <div className="@container rounded-xl border bg-muted/30 p-3 space-y-3 animate-in fade-in slide-in-from-top-1 duration-150">
+          <div className="grid grid-cols-1 gap-3 @sm:grid-cols-2">
             <FilterField label="Status">
               <Select
                 value={statusFilter}
@@ -180,7 +180,11 @@ export function MyWordsFilters({
                     {labelFor(STATUS_FILTER_OPTIONS, statusFilter)}
                   </SelectValue>
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent
+                  alignItemWithTrigger={false}
+                  side="bottom"
+                  sideOffset={4}
+                >
                   {STATUS_FILTER_OPTIONS.map((opt) => (
                     <SelectItem key={opt.value} value={opt.value}>
                       {opt.label}
@@ -202,7 +206,11 @@ export function MyWordsFilters({
                     {labelFor(ENTRY_TYPE_FILTER_OPTIONS, entryTypeFilter)}
                   </SelectValue>
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent
+                  alignItemWithTrigger={false}
+                  side="bottom"
+                  sideOffset={4}
+                >
                   {ENTRY_TYPE_FILTER_OPTIONS.map((opt) => (
                     <SelectItem key={opt.value} value={opt.value}>
                       {opt.label}
@@ -225,7 +233,11 @@ export function MyWordsFilters({
                       {labelFor(DATE_ADDED_FILTER_OPTIONS, dateAddedFilter)}
                     </SelectValue>
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent
+                    alignItemWithTrigger={false}
+                    side="bottom"
+                    sideOffset={4}
+                  >
                     {DATE_ADDED_FILTER_OPTIONS.map((opt) => (
                       <SelectItem key={opt.value} value={opt.value}>
                         {opt.label}
@@ -249,7 +261,11 @@ export function MyWordsFilters({
                       {labelFor(FREQUENCY_BAND_OPTIONS, frequencyFilter)}
                     </SelectValue>
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent
+                    alignItemWithTrigger={false}
+                    side="bottom"
+                    sideOffset={4}
+                  >
                     {FREQUENCY_BAND_OPTIONS.map((opt) => (
                       <SelectItem key={opt.value} value={opt.value}>
                         {opt.label}
@@ -259,57 +275,79 @@ export function MyWordsFilters({
                 </Select>
               </FilterField>
             )}
-
-            <FilterField label="Category">
-              <Select
-                value={categoryFilter}
-                onValueChange={(v) => v && onCategoryFilterChange(v)}
-                disabled={categoryLocked}
-              >
-                <SelectTrigger
-                  className={cn(
-                    "w-full h-9 rounded-lg bg-background",
-                    categoryLocked && "opacity-70"
-                  )}
-                >
-                  <SelectValue>{categoryLabel}</SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All categories</SelectItem>
-                  {categories.map((c) => (
-                    <SelectItem key={c.category} value={c.category}>
-                      {formatCategoryLabel(c.category)}
-                      <span className="text-muted-foreground ml-1.5 tabular-nums">
-                        ({c.count})
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </FilterField>
           </div>
+
+          <FilterField label="Tag">
+            <div
+              className={cn(
+                "rounded-lg border bg-background p-2 space-y-2",
+                tagLocked && "opacity-70 pointer-events-none"
+              )}
+            >
+              {activeTag ? (
+                <div className="flex flex-wrap items-center gap-2 px-1">
+                  <span className="text-xs font-medium">{activeTag.path}</span>
+                  {!tagLocked && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 px-2 text-xs"
+                      onClick={() => onTagFilterChange("all")}
+                    >
+                      Clear
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <p className="px-1 text-xs text-muted-foreground">
+                  Click a tag to filter. Parent tags include child tags.
+                </p>
+              )}
+              <TagTree
+                tree={tagTree}
+                search={tagSearch}
+                onSearchChange={setTagSearch}
+                activeId={tagFilter === "all" ? null : tagFilter}
+                onNodeClick={(id) => onTagFilterChange(id)}
+                showCounts
+              />
+              <label className="flex items-center gap-2 px-1 text-xs text-muted-foreground">
+                <input
+                  type="checkbox"
+                  checked={tagFilterExact}
+                  onChange={(e) => onTagFilterExactChange(e.target.checked)}
+                  disabled={tagFilter === "all"}
+                  className="rounded border-input"
+                />
+                Exact tag only (exclude child tags)
+              </label>
+            </div>
+          </FilterField>
         </div>
       )}
 
       {showSort && (
-        <div className="rounded-xl border bg-muted/30 p-3 animate-in fade-in slide-in-from-top-1 duration-150">
-          <FilterField label="Sort by">
-            <Select
-              value={sortBy}
-              onValueChange={(v) => v && onSortByChange(v as WordSort)}
-            >
-              <SelectTrigger className="w-full h-9 rounded-lg bg-background">
-                <SelectValue>{labelFor(WORD_SORT_OPTIONS, sortBy)}</SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {sortOptions.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </FilterField>
+        <div className="rounded-xl border bg-muted/30 p-2 animate-in fade-in slide-in-from-top-1 duration-150">
+          <p className="px-1.5 pb-1 text-xs text-muted-foreground">Sort by</p>
+          <div className="flex flex-col gap-0.5">
+            {sortOptions.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => onSortByChange(opt.value)}
+                className={cn(
+                  "flex w-full items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left text-sm transition-colors hover:bg-background/80",
+                  sortBy === opt.value && "bg-background font-medium shadow-sm"
+                )}
+              >
+                <span>{opt.label}</span>
+                {sortBy === opt.value && (
+                  <Check className="size-4 shrink-0 text-primary" aria-hidden />
+                )}
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
@@ -339,10 +377,10 @@ export function MyWordsFilters({
               onClear={() => onDateAddedFilterChange?.("all")}
             />
           )}
-          {categoryFilter !== "all" && !categoryLocked && (
+          {tagFilter !== "all" && !tagLocked && activeTag && (
             <FilterChip
-              label={formatCategoryLabel(categoryFilter)}
-              onClear={() => onCategoryFilterChange("all")}
+              label={activeTag.path}
+              onClear={() => onTagFilterChange("all")}
             />
           )}
           <Button

@@ -6,7 +6,7 @@ export type FlashcardInlineEditField =
   | "synonyms"
   | "antonyms"
   | "collocations"
-  | "category"
+  | "tag_ids"
   | "part_of_speech"
   | "ipa";
 

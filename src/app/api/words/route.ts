@@ -18,6 +18,12 @@ import {
   isStoredEntryType,
   deriveStoredEntryType,
 } from "@/lib/word-entry";
+import {
+  attachTagsToWords,
+  getTagsForWord,
+  getWordIdsForTagFilter,
+  setWordTags,
+} from "@/lib/tag-db";
 
 function applyFrequencyBandFilter<
   Q extends {
@@ -67,7 +73,10 @@ async function getMyWords(request: NextRequest) {
   const offset = (page - 1) * limit;
   const q = params.get("q")?.trim() ?? "";
   const status = params.get("status");
-  const category = params.get("category")?.trim() ?? "";
+  const tagId = params.get("tag_id")?.trim() ?? "";
+  const includeDescendants =
+    params.get("include_descendants") !== "0" &&
+    params.get("exact_tag") !== "1";
   const frequencyParam = params.get("frequency") ?? "all";
   const entryTypeParam = params.get("entry_type") ?? "all";
   const sortParam = params.get("sort") ?? "added";
@@ -107,8 +116,20 @@ async function getMyWords(request: NextRequest) {
     query = query.ilike("word.word", `%${q}%`);
   }
 
-  if (category && category !== "all") {
-    query = query.eq("word.category", category);
+  if (tagId && tagId !== "all") {
+    const wordIds = await getWordIdsForTagFilter(tagId, includeDescendants);
+    if (wordIds.length === 0) {
+      return NextResponse.json({
+        data: [],
+        pagination: {
+          page,
+          limit,
+          total: 0,
+          total_pages: 0,
+        },
+      });
+    }
+    query = query.in("word_id", wordIds);
   }
 
   query = applyEntryTypeFilter(query, entryType, "word.entry_type");
@@ -167,7 +188,7 @@ async function getMyWords(request: NextRequest) {
     .map((row: Record<string, unknown>) => {
       const w = row.word;
       if (!w || typeof w !== "object") return null;
-      const wordFields = w as Record<string, unknown>;
+      const wordFields = w as Record<string, unknown> & { id: string };
       return {
         ...wordFields,
         progress: {
@@ -183,10 +204,12 @@ async function getMyWords(request: NextRequest) {
         },
       };
     })
-    .filter(Boolean);
+    .filter(Boolean) as { id: string }[];
+
+  const withTags = await attachTagsToWords(results);
 
   return NextResponse.json({
-    data: results,
+    data: withTags,
     pagination: {
       page,
       limit,
@@ -196,10 +219,13 @@ async function getMyWords(request: NextRequest) {
   });
 }
 
-/** List vocabulary corpus (e.g. browse by category). */
+/** List vocabulary corpus (e.g. browse by tag). */
 async function getCorpusWords(request: NextRequest) {
   const params = request.nextUrl.searchParams;
-  const category = params.get("category");
+  const tagId = params.get("tag_id")?.trim() ?? "";
+  const includeDescendants =
+    params.get("include_descendants") !== "0" &&
+    params.get("exact_tag") !== "1";
   const status = params.get("status");
   const q = params.get("q")?.trim() ?? "";
   const frequencyParam = params.get("frequency") ?? "all";
@@ -228,8 +254,16 @@ async function getCorpusWords(request: NextRequest) {
     { count: "exact" }
   );
 
-  if (category) {
-    query = query.eq("category", category);
+  let tagWordIds: string[] | null = null;
+  if (tagId && tagId !== "all") {
+    tagWordIds = await getWordIdsForTagFilter(tagId, includeDescendants);
+    if (tagWordIds.length === 0) {
+      return NextResponse.json({
+        data: [],
+        pagination: { page, limit, total: 0, total_pages: 0 },
+      });
+    }
+    query = query.in("id", tagWordIds);
   }
 
   if (q) {
@@ -272,8 +306,12 @@ async function getCorpusWords(request: NextRequest) {
     });
   }
 
+  const withTags = await attachTagsToWords(
+    results as { id: string }[]
+  );
+
   return NextResponse.json({
-    data: results,
+    data: withTags,
     pagination: {
       page,
       limit,
@@ -287,14 +325,12 @@ export async function GET(request: NextRequest) {
   try {
     const inMyWords = request.nextUrl.searchParams.get("in_my_words");
     if (inMyWords === "1" || inMyWords === "true") {
-      return getMyWords(request);
+      return await getMyWords(request);
     }
-    return getCorpusWords(request);
-  } catch {
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return await getCorpusWords(request);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Internal server error";
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
 
@@ -334,7 +370,6 @@ export async function POST(request: NextRequest) {
         image_url: body.image_url ?? null,
         image_prompt: body.image_prompt ?? null,
         mnemonic: body.mnemonic ?? null,
-        category: body.category ?? null,
         rank: body.rank ?? null,
         word_family: body.word_family ?? null,
         is_custom: true,
@@ -346,7 +381,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json(data, { status: 201 });
+    const tagIds = Array.isArray(body.tag_ids)
+      ? body.tag_ids.filter((x: unknown) => typeof x === "string")
+      : [];
+    if (tagIds.length > 0) {
+      await setWordTags(data.id, tagIds);
+    }
+
+    const tags =
+      tagIds.length > 0 ? await getTagsForWord(data.id) : [];
+    return NextResponse.json({ ...data, tags }, { status: 201 });
   } catch {
     return NextResponse.json(
       { error: "Internal server error" },

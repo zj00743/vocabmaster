@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { normalizeImageUrlForStorage } from '@/lib/image-url';
+import { getTagsForWord } from '@/lib/tag-db';
 
 export async function GET(
   _request: NextRequest,
@@ -30,9 +31,11 @@ export async function GET(
     ).progress as unknown;
     const progressObj = Array.isArray(rawProg) ? rawProg[0] ?? null : rawProg ?? null;
 
+    const tags = await getTagsForWord(id);
     return NextResponse.json({
       ...data,
       progress: progressObj,
+      tags,
     });
   } catch {
     return NextResponse.json(
@@ -54,7 +57,7 @@ export async function PATCH(
       'word', 'definition', 'translation_zh', 'ipa', 'part_of_speech',
       'example_sentences', 'synonyms', 'antonyms', 'collocations',
       'common_expressions',
-      'mnemonic', 'category', 'is_saved', 'entry_type', 'show_image',
+      'mnemonic', 'is_saved', 'entry_type', 'show_image',
     ];
 
     const updates: Record<string, unknown> = {};

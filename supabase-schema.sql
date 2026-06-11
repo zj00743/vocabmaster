@@ -23,7 +23,6 @@ CREATE TABLE IF NOT EXISTS words (
   image_url TEXT,
   image_prompt TEXT,
   mnemonic TEXT,
-  category TEXT,
   entry_type TEXT CHECK (entry_type IS NULL OR entry_type IN ('word', 'phrase', 'sentence_pattern')),
   show_image BOOLEAN,
   is_custom BOOLEAN NOT NULL DEFAULT false,
@@ -65,7 +64,32 @@ CREATE TABLE IF NOT EXISTS excluded_from_review (
 CREATE UNIQUE INDEX IF NOT EXISTS words_word_unique ON words (word);
 CREATE INDEX IF NOT EXISTS idx_words_word_lower ON words(LOWER(word));
 CREATE INDEX IF NOT EXISTS idx_words_rank ON words(rank);
-CREATE INDEX IF NOT EXISTS idx_words_category ON words(category);
+-- Hierarchical tags (see supabase-migration-tags.sql)
+CREATE TABLE IF NOT EXISTS tags (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  name TEXT NOT NULL,
+  parent_id UUID REFERENCES tags(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS word_tags (
+  word_id UUID NOT NULL REFERENCES words(id) ON DELETE CASCADE,
+  tag_id UUID NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (word_id, tag_id)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_tags_root_name
+  ON tags (LOWER(name))
+  WHERE parent_id IS NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_tags_child_name
+  ON tags (parent_id, LOWER(name))
+  WHERE parent_id IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_tags_parent_id ON tags(parent_id);
+CREATE INDEX IF NOT EXISTS idx_word_tags_tag_id ON word_tags(tag_id);
+CREATE INDEX IF NOT EXISTS idx_word_tags_word_id ON word_tags(word_id);
 CREATE INDEX IF NOT EXISTS idx_words_is_custom ON words(is_custom);
 CREATE INDEX IF NOT EXISTS idx_words_entry_type ON words(entry_type);
 
@@ -80,6 +104,8 @@ CREATE INDEX IF NOT EXISTS idx_excluded_from_review_excluded_at
   ON excluded_from_review(excluded_at DESC);
 
 -- Enable Row Level Security but allow all access (no auth)
+ALTER TABLE tags ENABLE ROW LEVEL SECURITY;
+ALTER TABLE word_tags ENABLE ROW LEVEL SECURITY;
 ALTER TABLE words ENABLE ROW LEVEL SECURITY;
 ALTER TABLE learning_progress ENABLE ROW LEVEL SECURITY;
 ALTER TABLE reviews ENABLE ROW LEVEL SECURITY;
@@ -87,11 +113,15 @@ ALTER TABLE excluded_from_review ENABLE ROW LEVEL SECURITY;
 
 -- Policies: allow all operations (single user, no auth)
 -- DROP first so you can re-run this script without "policy already exists" errors.
+DROP POLICY IF EXISTS "Allow all on tags" ON tags;
+DROP POLICY IF EXISTS "Allow all on word_tags" ON word_tags;
 DROP POLICY IF EXISTS "Allow all on words" ON words;
 DROP POLICY IF EXISTS "Allow all on learning_progress" ON learning_progress;
 DROP POLICY IF EXISTS "Allow all on reviews" ON reviews;
 DROP POLICY IF EXISTS "Allow all on excluded_from_review" ON excluded_from_review;
 
+CREATE POLICY "Allow all on tags" ON tags FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all on word_tags" ON word_tags FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all on words" ON words FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all on learning_progress" ON learning_progress FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all on reviews" ON reviews FOR ALL USING (true) WITH CHECK (true);

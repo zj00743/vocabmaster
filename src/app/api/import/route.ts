@@ -36,7 +36,6 @@ export async function POST(request: NextRequest) {
         image_url: w.image_url || null,
         image_prompt: w.image_prompt || null,
         mnemonic: w.mnemonic || null,
-        category: w.category || null,
         is_custom: Boolean(w.is_custom),
       }));
 

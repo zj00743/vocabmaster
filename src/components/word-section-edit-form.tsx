@@ -21,6 +21,7 @@ import type { WordWithProgress } from "@/lib/types";
 import { ExampleSentencesEditor } from "@/components/example-sentences-editor";
 import { cn } from "@/lib/utils";
 import { playPronunciation } from "@/lib/pronunciation";
+import { TagPicker } from "@/components/tag-picker";
 
 const boxedTextareaCn = cn(
   "flex min-h-[4.5rem] w-full rounded-lg border border-input bg-background px-3 py-2.5",
@@ -124,15 +125,10 @@ export function WordSectionEditForm({
             </a>
           </div>
 
-          <label className="flex min-w-[7rem] max-w-sm flex-col gap-1.5 text-xs text-muted-foreground">
-            Category
-            <Input
-              value={values.category}
-              onChange={(e) => onChange({ category: e.target.value })}
-              className="text-sm"
-              placeholder="e.g. academic"
-            />
-          </label>
+          <TagPicker
+            selectedIds={values.tagIds}
+            onChange={(tagIds) => onChange({ tagIds })}
+          />
 
           <label className="flex min-w-[7rem] max-w-sm flex-col gap-1.5 text-xs text-muted-foreground">
             Card type

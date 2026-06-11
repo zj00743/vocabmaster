@@ -18,7 +18,7 @@ const navItems = [
   { href: "/review", label: "Review", icon: BookOpen },
   { href: "/search", label: "Add new", icon: Search },
   { href: "/words", label: "My collections", icon: BookMarked },
-  { href: "/categories", label: "Categories", icon: FolderOpen },
+  { href: "/tags", label: "Tags", icon: FolderOpen },
   { href: "/analytics", label: "Analytics", icon: LineChart },
   { href: "/settings", label: "Settings", icon: Settings },
 ];

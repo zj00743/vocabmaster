@@ -21,6 +21,8 @@ import type {
 } from "@/lib/word-card-edit-types";
 import type { Word, WordWithProgress } from "@/lib/types";
 import { normalizeWord } from "@/lib/word-utils";
+import { useTagTree } from "@/components/tag-picker";
+import type { TagTreeNode } from "@/lib/tags";
 
 const DRAFT_PLACEHOLDER_ID = "00000000-0000-0000-0000-000000000001";
 
@@ -43,7 +45,7 @@ export type CustomWordDraftSeed = {
   translation_zh?: string;
   ipa?: string;
   part_of_speech?: string;
-  category?: string | null;
+  tag_ids?: string[];
   example_sentences?: string[];
   synonyms?: string[];
   antonyms?: string[];
@@ -74,7 +76,8 @@ export function CustomWordDraftDialog({
   const [synonymsText, setSynonymsText] = useState("");
   const [antonymsText, setAntonymsText] = useState("");
   const [collocationsText, setCollocationsText] = useState("");
-  const [category, setCategory] = useState("");
+  const [tagIds, setTagIds] = useState<string[]>([]);
+  const { tree: tagTree } = useTagTree(true);
   const [partOfSpeech, setPartOfSpeech] = useState("");
   const [ipa, setIpa] = useState("");
 
@@ -95,7 +98,7 @@ export function CustomWordDraftDialog({
     setSynonymsText(examplesToText(s.synonyms));
     setAntonymsText(examplesToText(s.antonyms));
     setCollocationsText(examplesToText(s.collocations));
-    setCategory((s.category ?? "").trim());
+    setTagIds(Array.isArray(s.tag_ids) ? s.tag_ids : []);
     setPartOfSpeech((s.part_of_speech ?? "").trim());
     setIpa((s.ipa ?? "").trim());
     setEditingSection(null);
@@ -128,8 +131,30 @@ export function CustomWordDraftDialog({
     };
   }, [open, seed, resetFromSeed]);
 
+  const flatTags = useMemo(() => {
+    const out: TagTreeNode[] = [];
+    const walk = (nodes: TagTreeNode[]) => {
+      for (const n of nodes) {
+        out.push(n);
+        walk(n.children);
+      }
+    };
+    walk(tagTree);
+    return out;
+  }, [tagTree]);
+
   const previewWord = useMemo((): WordWithProgress | null => {
     if (!seed) return null;
+    const tags = tagIds
+      .map((id) => flatTags.find((t) => t.id === id))
+      .filter((t): t is TagTreeNode => Boolean(t))
+      .map((t) => ({
+        id: t.id,
+        name: t.name,
+        parent_id: t.parent_id,
+        path: t.path,
+        depth: t.depth,
+      }));
     return normalizeWord({
       id: DRAFT_PLACEHOLDER_ID,
       word: lemma.trim() || seed.lemma.trim(),
@@ -137,7 +162,7 @@ export function CustomWordDraftDialog({
       translation_zh: translationZh.trim(),
       ipa: ipa.trim(),
       part_of_speech: partOfSpeech.trim(),
-      category: category.trim() || null,
+      tags,
       example_sentences: linesToArray(examplesText),
       synonyms: linesToArray(synonymsText),
       antonyms: linesToArray(antonymsText),
@@ -158,7 +183,8 @@ export function CustomWordDraftDialog({
     translationZh,
     ipa,
     partOfSpeech,
-    category,
+    tagIds,
+    flatTags,
     examplesText,
     synonymsText,
     antonymsText,
@@ -189,8 +215,8 @@ export function CustomWordDraftDialog({
         case "examples":
           setExamplesText(value);
           break;
-        case "category":
-          setCategory(value);
+        case "tag_ids":
+          setTagIds(value.split(",").filter(Boolean));
           break;
         case "part_of_speech":
           setPartOfSpeech(value);
@@ -229,7 +255,7 @@ export function CustomWordDraftDialog({
       switch (sectionId) {
         case "back_header":
           snap.lemma = lemma;
-          snap.category = category;
+          snap.tag_ids = tagIds.join(",");
           snap.part_of_speech = partOfSpeech;
           snap.ipa = ipa;
           break;
@@ -257,7 +283,7 @@ export function CustomWordDraftDialog({
     },
     [
       lemma,
-      category,
+      tagIds,
       partOfSpeech,
       ipa,
       definition,
@@ -278,7 +304,9 @@ export function CustomWordDraftDialog({
     if (s.synonyms !== undefined) setSynonymsText(s.synonyms);
     if (s.antonyms !== undefined) setAntonymsText(s.antonyms);
     if (s.collocations !== undefined) setCollocationsText(s.collocations);
-    if (s.category !== undefined) setCategory(s.category);
+    if (s.tag_ids !== undefined) {
+      setTagIds(s.tag_ids.split(",").filter(Boolean));
+    }
     if (s.part_of_speech !== undefined) setPartOfSpeech(s.part_of_speech);
     if (s.ipa !== undefined) setIpa(s.ipa);
     sectionSnapRef.current = {};
@@ -329,7 +357,7 @@ export function CustomWordDraftDialog({
           translation_zh: translationZh.trim(),
           ipa: ipa.trim(),
           part_of_speech: partOfSpeech.trim(),
-          category: category.trim() || null,
+          tag_ids: tagIds,
           example_sentences: linesToArray(examplesText),
           synonyms: linesToArray(synonymsText),
           antonyms: linesToArray(antonymsText),

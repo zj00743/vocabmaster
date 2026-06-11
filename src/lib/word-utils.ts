@@ -38,6 +38,7 @@ export function normalizeWord(raw: WordWithProgress): WordWithProgress {
       synonymsPrimary.length > 0 ? synonymsPrimary : legacyExprs,
     antonyms: asStringArray(raw.antonyms as unknown),
     collocations: asStringArray(raw.collocations as unknown),
+    tags: Array.isArray(raw.tags) ? raw.tags : [],
   };
 }
 

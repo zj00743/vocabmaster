@@ -383,14 +383,15 @@ export function Flashcard({
       >
         <div className="flex flex-col items-center gap-3 w-full max-w-xl mx-auto">
           <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-2 max-w-full">
-            {word.category?.trim() ? (
+            {(word.tags ?? []).slice(0, 3).map((tag) => (
               <Badge
+                key={tag.id}
                 variant="outline"
                 className="text-sm px-3 py-0.5 font-sans shrink-0"
               >
-                {word.category}
+                {tag.path}
               </Badge>
-            ) : null}
+            ))}
             <WordTypeBadge
               word={word.word}
               rank={word.rank}

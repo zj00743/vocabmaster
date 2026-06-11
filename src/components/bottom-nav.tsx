@@ -30,7 +30,7 @@ const tabs = [
 ] as const;
 
 const moreItems = [
-  { href: "/categories", label: "Categories", icon: FolderOpen },
+  { href: "/tags", label: "Tags", icon: FolderOpen },
   { href: "/analytics", label: "Analytics", icon: LineChart },
   { href: "/settings", label: "Settings", icon: Settings },
 ] as const;

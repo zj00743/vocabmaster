@@ -25,6 +25,7 @@ import {
   SectionEditActions,
   sectionEditBlocked,
 } from "@/lib/word-card-section-edit";
+import { TagPicker } from "@/components/tag-picker";
 
 export type {
   FlashcardInlineEditField,
@@ -295,7 +296,6 @@ export function WordDetailBody({
   const sect = fc && sectionEdit ? sectionEdit : undefined;
   const browse = fc && browseEdit ? browseEdit : undefined;
   const [definitionLang, setDefinitionLang] = useState<"en" | "zh">("en");
-
   useEffect(() => {
     setDefinitionLang("en");
   }, [word.id]);
@@ -456,17 +456,14 @@ export function WordDetailBody({
               </div>
 
               <div className="flex flex-wrap items-center gap-2 gap-y-2">
-                <label className="flex min-w-[7rem] max-w-[12rem] flex-col gap-1.5 text-xs text-muted-foreground font-sans">
-                  Category
-                  <Input
-                    value={word.category ?? ""}
-                    onChange={(e) =>
-                      sect.onSectionFieldChange("category", e.target.value)
+                <div className="w-full min-w-0">
+                  <TagPicker
+                    selectedIds={(word.tags ?? []).map((t) => t.id)}
+                    onChange={(ids) =>
+                      sect.onSectionFieldChange("tag_ids", ids.join(","))
                     }
-                    className="font-sans text-sm"
-                    placeholder="e.g. academic"
                   />
-                </label>
+                </div>
                 <WordTypeBadge
                   word={word.word}
                   rank={word.rank}
@@ -540,14 +537,15 @@ export function WordDetailBody({
                 entryType={word.entry_type}
                 className="text-sm px-3 py-0.5 font-sans"
               />
-              {word.category?.trim() && (
+              {(word.tags ?? []).map((tag) => (
                 <Badge
+                  key={tag.id}
                   variant="outline"
                   className="text-sm px-3 py-0.5 font-sans shrink-0"
                 >
-                  {word.category}
+                  {tag.path}
                 </Badge>
-              )}
+              ))}
               {word.word_family?.trim() && (
                 <Badge
                   variant="outline"
@@ -989,11 +987,11 @@ export function WordDetailBody({
               Family: {word.word_family}
             </Badge>
           )}
-          {word.category?.trim() && (
-            <Badge variant="secondary" className="font-sans text-xs">
-              {word.category}
+          {(word.tags ?? []).map((tag) => (
+            <Badge key={tag.id} variant="secondary" className="font-sans text-xs">
+              {tag.path}
             </Badge>
-          )}
+          ))}
         </div>
       )}
     </div>

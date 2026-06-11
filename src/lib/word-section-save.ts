@@ -10,7 +10,7 @@ import {
 export type SectionFieldValues = {
   lemma: string;
   ipa: string;
-  category: string;
+  tagIds: string[];
   partOfSpeech: string;
   entryType: EntryType;
   showImage: boolean;
@@ -26,12 +26,10 @@ export function sectionFieldsFromWord(word: WordWithProgress): SectionFieldValue
   return {
     lemma: word.word ?? "",
     ipa: (word.ipa ?? "").trim(),
-    category: (word.category ?? "").trim(),
+    tagIds: (word.tags ?? []).map((t) => t.id),
     partOfSpeech: (word.part_of_speech ?? "").trim(),
     entryType: resolveEntryType(word.word ?? "", word.entry_type),
     showImage: resolveShowImage(word.word ?? "", word.entry_type, word.show_image),
-    /* Definition/translation are edited as one sense per line; collapse to the
-       stored `" · "` form only at save time so typing spaces/newlines works. */
     definition: definitionToEditLines(word.definition ?? ""),
     translationZh: definitionToEditLines(word.translation_zh ?? ""),
     examplesText: word.example_sentences.filter(Boolean).join("\n"),
@@ -57,7 +55,6 @@ export function buildSectionPatchPayload(
     case "back_header": {
       const payload: Record<string, unknown> = {
         ipa: values.ipa.trim(),
-        category: values.category.trim() || "",
         part_of_speech: values.partOfSpeech.trim(),
         entry_type: values.entryType,
         show_image: values.showImage,

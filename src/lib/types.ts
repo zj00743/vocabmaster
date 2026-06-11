@@ -1,3 +1,5 @@
+import type { TagWithPath } from "@/lib/tags";
+
 export interface Word {
   id: string;
   word: string;
@@ -15,7 +17,7 @@ export interface Word {
   image_url: string | null;
   image_prompt: string | null;
   mnemonic: string | null;
-  category: string | null;
+  tags?: TagWithPath[];
   /** "word" | "phrase" | "sentence_pattern"; null on legacy rows (derive from text). */
   entry_type?: string | null;
   /** Per-card image toggle; null = use default (off for sentence patterns). */

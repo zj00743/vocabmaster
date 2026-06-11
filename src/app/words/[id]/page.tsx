@@ -8,10 +8,9 @@ import {
 } from "react";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, X } from "lucide-react";
 import { toast } from "sonner";
 
-import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Flashcard } from "@/components/flashcard";
@@ -82,39 +81,46 @@ function WordEditorInner() {
 
   if (!id) {
     return (
-      <AppShell>
-        <div className="mx-auto max-w-3xl px-4 py-12 text-muted-foreground">
-          Invalid link.
-        </div>
-      </AppShell>
+      <div className="mx-auto max-w-3xl px-4 py-12 text-muted-foreground">
+        Invalid link.
+      </div>
     );
   }
 
   return (
-    <AppShell>
-      <div className="flex h-dvh max-h-dvh min-h-0 flex-col overflow-hidden md:h-auto md:max-h-none md:flex-1 md:overflow-visible">
-        <div className="mx-auto flex w-full max-w-3xl min-h-0 flex-1 flex-col overflow-hidden md:px-8 md:overflow-visible">
-          <header className="shrink-0 border-b bg-background px-4 pb-3 pt-4 md:px-0">
-            <div className="flex min-w-0 items-center gap-2">
-              <Link href="/words" className="shrink-0">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="-ml-2 font-sans"
-                  aria-label="Back to My Words"
-                >
-                  <ArrowLeft className="size-4" />
-                </Button>
-              </Link>
-              {word && (
-                <h1 className="min-w-0 flex-1 truncate text-lg font-semibold tracking-tight">
-                  {word.word}
-                </h1>
-              )}
-            </div>
-          </header>
+    <div className="flex h-dvh max-h-dvh min-h-0 flex-col overflow-hidden md:h-full md:max-h-none md:flex-1">
+      <div className="mx-auto flex w-full max-w-3xl min-h-0 flex-1 flex-col overflow-hidden md:max-w-none md:px-8">
+        <header className="shrink-0 border-b bg-background px-4 pb-3 pt-4 md:px-0">
+          <div className="flex min-w-0 items-center gap-2">
+            <Link href="/words" className="shrink-0 md:hidden">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="-ml-2 font-sans"
+                aria-label="Back to My Words"
+              >
+                <ArrowLeft className="size-4" />
+              </Button>
+            </Link>
+            {word && (
+              <h1 className="min-w-0 flex-1 truncate text-lg font-semibold tracking-tight">
+                {word.word}
+              </h1>
+            )}
+            <Link href="/words" className="hidden md:inline-flex shrink-0">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="font-sans"
+                aria-label="Close card panel"
+              >
+                <X className="size-4" />
+              </Button>
+            </Link>
+          </div>
+        </header>
 
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain pb-[calc(3.5rem+env(safe-area-inset-bottom,0px))] md:pb-8 md:overflow-y-visible md:overscroll-auto">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain pb-[calc(3.5rem+env(safe-area-inset-bottom,0px))] md:pb-8">
             {!loading && word && (
               <div className="bg-background px-4 py-3 md:px-0">
                 <Tabs
@@ -206,8 +212,7 @@ function WordEditorInner() {
             )}
           </div>
         </div>
-      </div>
-    </AppShell>
+    </div>
   );
 }
 
@@ -215,11 +220,9 @@ export default function WordDetailPage() {
   return (
     <Suspense
       fallback={
-        <AppShell>
-          <div className="mx-auto max-w-3xl px-4 py-12 text-muted-foreground">
-            Loading…
-          </div>
-        </AppShell>
+        <div className="mx-auto max-w-3xl px-4 py-12 text-muted-foreground">
+          Loading…
+        </div>
       }
     >
       <WordEditorInner />
