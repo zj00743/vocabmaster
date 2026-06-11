@@ -48,13 +48,13 @@ export async function POST(request: NextRequest) {
     }
 
     const lemma = word.trim();
-    const isPhrase = /\s/.test(lemma);
-    const term = isPhrase ? "phrase" : "word";
+    const isExpression = /\s/.test(lemma);
+    const term = isExpression ? "expression" : "word";
 
     const prompt = `Generate a comprehensive vocabulary card for the English ${term} "${lemma}".
 
 The card MUST describe the entire ${term} "${lemma}" as a whole${
-      isPhrase
+      isExpression
         ? " (an idiom / multi-word expression), NOT just its individual words"
         : ""
     }.
@@ -63,9 +63,9 @@ Return a JSON object with these exact fields:
 - "word": the ${term} itself
 - "definition": clear English definition of the whole ${term}
 - "translation_zh": Chinese translation of the whole ${term}
-- "ipa": IPA pronunciation${isPhrase ? ' (use "" for phrases)' : ""}
+- "ipa": IPA pronunciation${isExpression ? ' (use "" for expressions)' : ""}
 - "part_of_speech": e.g. "noun", "verb", "adjective"${
-      isPhrase ? ' (or "phrase" / "idiom")' : ""
+      isExpression ? ' (or "expression" / "idiom")' : ""
     }
 - "category": one of: academic, business, science, medicine, art, technology, daily conversation, law, politics, sports, music, food, travel, education, nature
 - "example_sentences": array of 3 example sentences using the whole ${term}

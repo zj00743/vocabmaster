@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createTag, getTagTree } from "@/lib/tag-db";
+import { createTag, getTagList } from "@/lib/tag-db";
 
 export async function GET(request: NextRequest) {
   try {
     const inMyWords =
       request.nextUrl.searchParams.get("in_my_words") === "1" ||
       request.nextUrl.searchParams.get("in_my_words") === "true";
-    const tree = await getTagTree(inMyWords);
-    return NextResponse.json(tree);
+    const tags = await getTagList(inMyWords);
+    return NextResponse.json(tags);
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Internal server error";
     return NextResponse.json({ error: msg }, { status: 500 });
@@ -18,11 +18,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const name = typeof body.name === "string" ? body.name : "";
-    const parentId =
-      typeof body.parent_id === "string" && body.parent_id.trim()
-        ? body.parent_id.trim()
-        : null;
-    const tag = await createTag(name, parentId);
+    const tag = await createTag(name);
     return NextResponse.json(tag, { status: 201 });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Internal server error";

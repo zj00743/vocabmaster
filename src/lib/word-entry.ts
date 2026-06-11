@@ -1,9 +1,9 @@
 /**
- * Entry type. `word` / `phrase` are auto-detectable from whitespace, but
- * `sentence_pattern` cannot be (it is also multi-word), so it must be stored
- * explicitly on the row (`words.entry_type`).
+ * Entry type. `word` is single-token; `expression` covers multi-word phrases and
+ * sentence patterns (stored explicitly on `words.entry_type` when not
+ * inferable from whitespace alone).
  */
-export type EntryType = "word" | "phrase" | "sentence_pattern";
+export type EntryType = "word" | "expression";
 
 export type EntryTypeFilter = "all" | EntryType;
 
@@ -13,43 +13,61 @@ export const ENTRY_TYPE_FILTER_OPTIONS: {
 }[] = [
   { value: "all", label: "All types" },
   { value: "word", label: "Words only" },
-  { value: "phrase", label: "Phrases only" },
-  { value: "sentence_pattern", label: "Sentence patterns" },
+  { value: "expression", label: "Expressions only" },
 ];
 
+/** True when the lemma has multiple space-separated tokens. */
 export function isPhraseEntry(text: string): boolean {
   return /\s/.test(text.trim());
 }
 
+/** Alias for multi-word lemmas (phrases, sentence patterns, etc.). */
+export const isExpressionEntry = isPhraseEntry;
+
 /** Valid stored values for `words.entry_type`. */
 export function isStoredEntryType(v: unknown): v is EntryType {
-  return v === "word" || v === "phrase" || v === "sentence_pattern";
+  return v === "word" || v === "expression";
+}
+
+/** Legacy DB / API values merged into `expression`. */
+export function isLegacyExpressionType(v: unknown): boolean {
+  return v === "phrase" || v === "sentence_pattern";
 }
 
 /**
  * Resolve the effective type of an entry. Prefer the explicitly stored
  * `entry_type`; fall back to whitespace detection for legacy rows where it is
- * still null (word vs phrase only — sentence patterns must be stored).
+ * still null.
  */
 export function resolveEntryType(
   text: string,
   stored?: string | null
 ): EntryType {
-  if (isStoredEntryType(stored)) return stored;
-  return isPhraseEntry(text) ? "phrase" : "word";
+  if (stored === "phrase" || stored === "sentence_pattern" || stored === "expression") {
+    return "expression";
+  }
+  if (stored === "word") return "word";
+  return isPhraseEntry(text) ? "expression" : "word";
 }
 
 /** Value to persist when no explicit type is chosen (CoCA import, AI add). */
-export function deriveStoredEntryType(text: string): Exclude<
-  EntryType,
-  "sentence_pattern"
-> {
-  return isPhraseEntry(text) ? "phrase" : "word";
+export function deriveStoredEntryType(text: string): EntryType {
+  return isPhraseEntry(text) ? "expression" : "word";
+}
+
+/** Normalize API / legacy stored values to the current schema. */
+export function normalizeEntryTypeForStorage(
+  v: unknown,
+  text = ""
+): EntryType {
+  if (v === "word") return "word";
+  if (v === "expression" || isLegacyExpressionType(v)) return "expression";
+  return deriveStoredEntryType(text);
 }
 
 /**
  * Whether the card image section is shown. An explicit per-card `show_image`
- * wins; otherwise default off for sentence patterns, on for words/phrases.
+ * wins; otherwise images default on for words and off for expressions.
  */
 export function resolveShowImage(
   text: string,
@@ -57,32 +75,25 @@ export function resolveShowImage(
   showImage: boolean | null | undefined
 ): boolean {
   if (typeof showImage === "boolean") return showImage;
-  return resolveEntryType(text, entryTypeStored) !== "sentence_pattern";
+  return resolveEntryType(text, entryTypeStored) === "word";
 }
 
 /** Short badge label for an entry type. */
 export function entryTypeBadgeLabel(type: EntryType): string {
-  switch (type) {
-    case "sentence_pattern":
-      return "Sentence pattern";
-    case "phrase":
-      return "Phrase";
-    default:
-      return "Word";
-  }
+  return type === "expression" ? "Expression" : "Word";
 }
 
-/** Space-separated tokens in a phrase lemma. */
+/** Space-separated tokens in an expression lemma. */
 export function phraseWords(text: string): string[] {
   return text.trim().split(/\s+/).filter(Boolean);
 }
 
-/** Number of space-separated tokens in a phrase lemma. */
+/** Number of space-separated tokens in an expression lemma. */
 export function phraseWordCount(text: string): number {
   return phraseWords(text).length;
 }
 
-/** Blank box width in `ch` per token (one slot for a word, one per word in a phrase). */
+/** Blank box width in `ch` per token (one slot for a word, one per word in an expression). */
 export function entryBlankSlotChWidths(text: string): number[] {
   return phraseWords(text).map((w) =>
     Math.min(20, Math.max(5, w.length + 3))
@@ -97,7 +108,7 @@ export function phraseBoxPlaceholder(text: string): string {
 }
 
 export function entryTypeOf(text: string): EntryType {
-  return isPhraseEntry(text) ? "phrase" : "word";
+  return isPhraseEntry(text) ? "expression" : "word";
 }
 
 export function entryTypeLabel(type: EntryType): string {
@@ -110,7 +121,17 @@ export function isInCocaBank(rank: number | null | undefined): boolean {
 }
 
 export function isValidEntryTypeFilter(v: string): v is EntryTypeFilter {
+  if (v === "phrase" || v === "sentence_pattern") return true;
   return ENTRY_TYPE_FILTER_OPTIONS.some((o) => o.value === v);
+}
+
+/** Map filter param (incl. legacy values) to the current filter enum. */
+export function normalizeEntryTypeFilter(v: string): EntryTypeFilter {
+  if (v === "phrase" || v === "sentence_pattern" || v === "expression") {
+    return "expression";
+  }
+  if (v === "word") return "word";
+  return "all";
 }
 
 /**
@@ -120,8 +141,16 @@ export function isValidEntryTypeFilter(v: string): v is EntryTypeFilter {
 export function applyEntryTypeFilter<
   Q extends {
     eq: (col: string, val: string) => Q;
+    in: (col: string, vals: string[]) => Q;
   },
 >(query: Q, entryType: EntryTypeFilter, entryTypeColumn: string): Q {
   if (entryType === "all") return query;
+  if (entryType === "expression") {
+    return query.in(entryTypeColumn, [
+      "expression",
+      "phrase",
+      "sentence_pattern",
+    ]);
+  }
   return query.eq(entryTypeColumn, entryType);
 }

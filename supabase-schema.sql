@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS words (
   image_url TEXT,
   image_prompt TEXT,
   mnemonic TEXT,
-  entry_type TEXT CHECK (entry_type IS NULL OR entry_type IN ('word', 'phrase', 'sentence_pattern')),
+  entry_type TEXT CHECK (entry_type IS NULL OR entry_type IN ('word', 'expression')),
   show_image BOOLEAN,
   is_custom BOOLEAN NOT NULL DEFAULT false,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -64,11 +64,10 @@ CREATE TABLE IF NOT EXISTS excluded_from_review (
 CREATE UNIQUE INDEX IF NOT EXISTS words_word_unique ON words (word);
 CREATE INDEX IF NOT EXISTS idx_words_word_lower ON words(LOWER(word));
 CREATE INDEX IF NOT EXISTS idx_words_rank ON words(rank);
--- Hierarchical tags (see supabase-migration-tags.sql)
+-- Flat tags (see supabase-migration-tags.sql)
 CREATE TABLE IF NOT EXISTS tags (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name TEXT NOT NULL,
-  parent_id UUID REFERENCES tags(id) ON DELETE CASCADE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -79,15 +78,7 @@ CREATE TABLE IF NOT EXISTS word_tags (
   PRIMARY KEY (word_id, tag_id)
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_tags_root_name
-  ON tags (LOWER(name))
-  WHERE parent_id IS NULL;
-
-CREATE UNIQUE INDEX IF NOT EXISTS idx_tags_child_name
-  ON tags (parent_id, LOWER(name))
-  WHERE parent_id IS NOT NULL;
-
-CREATE INDEX IF NOT EXISTS idx_tags_parent_id ON tags(parent_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_tags_name ON tags (LOWER(name));
 CREATE INDEX IF NOT EXISTS idx_word_tags_tag_id ON word_tags(tag_id);
 CREATE INDEX IF NOT EXISTS idx_word_tags_word_id ON word_tags(word_id);
 CREATE INDEX IF NOT EXISTS idx_words_is_custom ON words(is_custom);

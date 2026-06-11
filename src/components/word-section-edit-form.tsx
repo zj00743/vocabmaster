@@ -145,10 +145,7 @@ export function WordSectionEditForm({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="word">Word</SelectItem>
-                <SelectItem value="phrase">Phrase</SelectItem>
-                <SelectItem value="sentence_pattern">
-                  Sentence pattern
-                </SelectItem>
+                <SelectItem value="expression">Expression</SelectItem>
               </SelectContent>
             </Select>
           </label>

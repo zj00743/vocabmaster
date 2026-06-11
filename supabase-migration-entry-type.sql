@@ -1,10 +1,9 @@
--- Adds an explicit entry type so "sentence pattern" can be distinguished from
--- plain multi-word "phrase" entries (both are multi-word, so type cannot be
--- inferred from text alone).
+-- Adds an explicit entry type: 'word' | 'expression' (multi-word phrases,
+-- sentence patterns, idioms, etc.).
 --
 -- Run once in the Supabase SQL Editor BEFORE deploying the app changes.
 
--- 1. Column: 'word' | 'phrase' | 'sentence_pattern'
+-- 1. Column: 'word' | 'expression'
 ALTER TABLE words
   ADD COLUMN IF NOT EXISTS entry_type TEXT;
 
@@ -12,13 +11,12 @@ ALTER TABLE words
   DROP CONSTRAINT IF EXISTS words_entry_type_check;
 ALTER TABLE words
   ADD CONSTRAINT words_entry_type_check
-  CHECK (entry_type IS NULL OR entry_type IN ('word', 'phrase', 'sentence_pattern'));
+  CHECK (entry_type IS NULL OR entry_type IN ('word', 'expression'));
 
--- 2. Backfill existing rows from whitespace (no existing rows are sentence
---    patterns yet, so anything multi-word becomes 'phrase').
+-- 2. Backfill existing rows from whitespace.
 UPDATE words
 SET entry_type = CASE
-  WHEN word ~ '\s' THEN 'phrase'
+  WHEN word ~ '\s' THEN 'expression'
   ELSE 'word'
 END
 WHERE entry_type IS NULL;

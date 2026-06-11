@@ -20,7 +20,6 @@ export async function POST(
     return NextResponse.json({ ok: true });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Internal server error";
-    const status = msg.includes("Cannot") ? 409 : 400;
-    return NextResponse.json({ error: msg }, { status });
+    return NextResponse.json({ error: msg }, { status: 400 });
   }
 }

@@ -46,7 +46,7 @@ import {
 } from "@/lib/date-added-filter";
 import { type EntryTypeFilter } from "@/lib/word-entry";
 import { MyWordListCard } from "@/components/my-word-list-card";
-import type { TagTreeNode } from "@/lib/tags";
+import type { TagWithCount } from "@/lib/tags";
 
 export function MyWordsList({
   variant = "page",
@@ -77,24 +77,21 @@ export function MyWordsList({
   const [dateAddedFilter, setDateAddedFilter] =
     useState<DateAddedFilter>("all");
   const [tagFilter, setTagFilter] = useState<string>(browseTag ?? "all");
-  const [tagFilterExact, setTagFilterExact] = useState(false);
   const [sortBy, setSortBy] = useState<WordSort>("added");
 
   useEffect(() => {
     setSortBy(browseCorpusByTag ? "frequency" : "added");
   }, [browseCorpusByTag]);
-  const [tagTree, setTagTree] = useState<TagTreeNode[]>([]);
+  const [tags, setTags] = useState<TagWithCount[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [filteredTotal, setFilteredTotal] = useState(0);
   const limit = 20;
-  /* Phrases and sentence patterns are not in CoCA — hide CoCA frequency. */
-  const phrasesOnly =
-    entryTypeFilter === "phrase" || entryTypeFilter === "sentence_pattern";
+  /* Expressions are not in CoCA — hide CoCA frequency. */
+  const expressionsOnly = entryTypeFilter === "expression";
 
   useEffect(() => {
-    if (entryTypeFilter !== "phrase" && entryTypeFilter !== "sentence_pattern")
-      return;
+    if (entryTypeFilter !== "expression") return;
     setFrequencyFilter((f) => (f !== "all" ? "all" : f));
     setSortBy((s) => (s === "frequency" ? "added" : s));
   }, [entryTypeFilter]);
@@ -125,13 +122,12 @@ export function MyWordsList({
         if (entryTypeFilter !== "all") {
           params.set("entry_type", entryTypeFilter);
         }
-        if (!phrasesOnly && frequencyFilter !== "all") {
+        if (!expressionsOnly && frequencyFilter !== "all") {
           params.set("frequency", frequencyFilter);
         }
         const activeTag = browseTag ?? tagFilter;
         if (activeTag && activeTag !== "all") {
           params.set("tag_id", activeTag);
-          if (tagFilterExact) params.set("exact_tag", "1");
         }
         params.set("sort", sortBy);
         if (!browseCorpusByTag) {
@@ -173,9 +169,8 @@ export function MyWordsList({
       entryTypeFilter,
       frequencyFilter,
       dateAddedFilter,
-      phrasesOnly,
+      expressionsOnly,
       tagFilter,
-      tagFilterExact,
       sortBy,
       browseTag,
       browseCorpusByTag,
@@ -191,7 +186,7 @@ export function MyWordsList({
     async function loadTags() {
       try {
         const res = await fetch("/api/tags?in_my_words=1");
-        if (res.ok) setTagTree(await res.json());
+        if (res.ok) setTags(await res.json());
       } catch {
         // ignore
       }
@@ -214,7 +209,6 @@ export function MyWordsList({
     frequencyFilter,
     dateAddedFilter,
     tagFilter,
-    tagFilterExact,
     sortBy,
     browseTag,
     browseCorpusByTag,
@@ -252,13 +246,12 @@ export function MyWordsList({
     if (search) p.set("q", search);
     if (statusFilter !== "all") p.set("status", statusFilter);
     if (entryTypeFilter !== "all") p.set("entry_type", entryTypeFilter);
-    if (!phrasesOnly && frequencyFilter !== "all") {
+    if (!expressionsOnly && frequencyFilter !== "all") {
       p.set("frequency", frequencyFilter);
     }
     const activeTag = browseTag ?? tagFilter;
     if (activeTag && activeTag !== "all") {
       p.set("tag_id", activeTag);
-      if (tagFilterExact) p.set("exact_tag", "1");
     }
     if (!browseCorpusByTag) {
       p.set("in_my_words", "1");
@@ -271,9 +264,8 @@ export function MyWordsList({
     entryTypeFilter,
     frequencyFilter,
     dateAddedFilter,
-    phrasesOnly,
+    expressionsOnly,
     tagFilter,
-    tagFilterExact,
     browseTag,
     browseCorpusByTag,
   ]);
@@ -441,16 +433,8 @@ export function MyWordsList({
   const activeTagLabel = useMemo(() => {
     const id = browseTag ?? (tagFilter !== "all" ? tagFilter : null);
     if (!id) return null;
-    const walk = (nodes: TagTreeNode[]): string | null => {
-      for (const n of nodes) {
-        if (n.id === id) return n.path;
-        const child = walk(n.children);
-        if (child) return child;
-      }
-      return null;
-    };
-    return walk(tagTree);
-  }, [browseTag, tagFilter, tagTree]);
+    return tags.find((t) => t.id === id)?.name ?? null;
+  }, [browseTag, tagFilter, tags]);
   const allOnPageSelected =
     words.length > 0 && words.every((w) => selectedIds.has(w.id));
   const selectedCount = selectedIds.size;
@@ -484,7 +468,7 @@ export function MyWordsList({
             {!browseCorpusByTag && (
               <p className="text-xs text-muted-foreground mt-1">
                 {activeTagLabel
-                  ? `Saved items tagged with “${activeTagLabel}” (includes child tags unless exact filter is on).`
+                  ? `Saved items tagged with “${activeTagLabel}”.`
                   : "Words you have added to your book (not the full dictionary)."}
               </p>
             )}
@@ -530,18 +514,16 @@ export function MyWordsList({
           onEntryTypeFilterChange={setEntryTypeFilter}
           frequencyFilter={frequencyFilter}
           onFrequencyFilterChange={setFrequencyFilter}
-          hideFrequencyFilter={phrasesOnly}
+          hideFrequencyFilter={expressionsOnly}
           showDateAddedFilter={!browseCorpusByTag}
           dateAddedFilter={dateAddedFilter}
           onDateAddedFilterChange={setDateAddedFilter}
           tagFilter={tagFilter}
           onTagFilterChange={setTagFilter}
-          tagFilterExact={tagFilterExact}
-          onTagFilterExactChange={setTagFilterExact}
           sortBy={sortBy}
           onSortByChange={setSortBy}
           defaultSort={browseCorpusByTag ? "frequency" : "added"}
-          tagTree={tagTree}
+          tags={tags}
           tagLocked={!!browseTag}
           searchPlaceholder={
             browseCorpusByTag

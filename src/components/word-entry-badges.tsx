@@ -32,7 +32,7 @@ export function CocaOrCustomBadge({
 
 /**
  * Single source of truth for the entry's type/frequency badge. Precedence:
- * sentence pattern → phrase → CoCA rank → Custom.
+ * expression → CoCA rank → Custom.
  */
 export function WordTypeBadge({
   word,
@@ -47,7 +47,7 @@ export function WordTypeBadge({
 }) {
   const type = resolveEntryType(word, entryType);
 
-  if (type === "sentence_pattern" || type === "phrase") {
+  if (type === "expression") {
     return (
       <Badge
         variant="outline"

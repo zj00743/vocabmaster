@@ -226,7 +226,7 @@ export function Flashcard({
   const lemmaFullyRevealed =
     wordVisible || revealCount >= lemma.length;
   const isPhrase = isPhraseEntry(word.word);
-  /* Per-card image toggle (defaults off for sentence patterns). */
+  /* Per-card image toggle (defaults off for expressions). */
   const showImage = resolveShowImage(
     word.word,
     word.entry_type,
@@ -390,7 +390,7 @@ export function Flashcard({
                 variant="outline"
                 className="text-sm px-3 py-0.5 font-sans shrink-0"
               >
-                {tag.path}
+                {tag.name}
               </Badge>
             ))}
             <WordTypeBadge
@@ -486,20 +486,20 @@ export function Flashcard({
                 aria-label={
                   wordVisible
                     ? isPhrase
-                      ? "Hide phrase"
+                      ? "Hide expression"
                       : "Hide word"
                     : isPhrase
-                      ? "Show phrase"
+                      ? "Show expression"
                       : "Show word"
                 }
                 aria-pressed={wordVisible}
                 title={
                   wordVisible
                     ? isPhrase
-                      ? "Hide phrase"
+                      ? "Hide expression"
                       : "Hide word"
                     : isPhrase
-                      ? "Show phrase"
+                      ? "Show expression"
                       : "Show word"
                 }
                 onClick={(e) => {

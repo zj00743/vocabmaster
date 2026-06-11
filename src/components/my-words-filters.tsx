@@ -26,8 +26,7 @@ import {
   type EntryTypeFilter,
   ENTRY_TYPE_FILTER_OPTIONS,
 } from "@/lib/word-entry";
-import { TagTree } from "@/components/tag-tree";
-import type { TagTreeNode } from "@/lib/tags";
+import type { TagWithCount } from "@/lib/tags";
 import { cn } from "@/lib/utils";
 
 export type StatusFilter = (typeof STATUS_FILTER_OPTIONS)[number]["value"];
@@ -47,12 +46,10 @@ interface MyWordsFiltersProps {
   onDateAddedFilterChange?: (value: DateAddedFilter) => void;
   tagFilter: string;
   onTagFilterChange: (value: string) => void;
-  tagFilterExact: boolean;
-  onTagFilterExactChange: (value: boolean) => void;
   sortBy: WordSort;
   onSortByChange: (value: WordSort) => void;
   defaultSort?: WordSort;
-  tagTree: TagTreeNode[];
+  tags: TagWithCount[];
   tagLocked?: boolean;
   searchPlaceholder?: string;
 }
@@ -62,18 +59,6 @@ function labelFor<T extends { value: string; label: string }>(
   value: string
 ): string {
   return options.find((o) => o.value === value)?.label ?? value;
-}
-
-function flattenTree(nodes: TagTreeNode[]): TagTreeNode[] {
-  const out: TagTreeNode[] = [];
-  const walk = (list: TagTreeNode[]) => {
-    for (const n of list) {
-      out.push(n);
-      walk(n.children);
-    }
-  };
-  walk(nodes);
-  return out;
 }
 
 export function MyWordsFilters({
@@ -91,25 +76,24 @@ export function MyWordsFilters({
   onDateAddedFilterChange,
   tagFilter,
   onTagFilterChange,
-  tagFilterExact,
-  onTagFilterExactChange,
   sortBy,
   onSortByChange,
   defaultSort = "frequency",
-  tagTree,
+  tags,
   tagLocked = false,
   searchPlaceholder = "Search your words…",
 }: MyWordsFiltersProps) {
   const [showFilters, setShowFilters] = useState(false);
   const [showSort, setShowSort] = useState(false);
-  const [tagSearch, setTagSearch] = useState("");
 
   const sortOptions = hideFrequencyFilter
     ? WORD_SORT_OPTIONS.filter((o) => o.value !== "frequency")
     : WORD_SORT_OPTIONS;
 
-  const flatTags = useMemo(() => flattenTree(tagTree), [tagTree]);
-  const activeTag = flatTags.find((t) => t.id === tagFilter) ?? null;
+  const activeTag = useMemo(
+    () => tags.find((t) => t.id === tagFilter) ?? null,
+    [tags, tagFilter]
+  );
 
   const hasActiveFilters =
     statusFilter !== "all" ||
@@ -126,7 +110,6 @@ export function MyWordsFilters({
     onFrequencyFilterChange("all");
     onDateAddedFilterChange?.("all");
     if (!tagLocked) onTagFilterChange("all");
-    onTagFilterExactChange(false);
   };
 
   const toggleFilters = () => {
@@ -275,55 +258,41 @@ export function MyWordsFilters({
                 </Select>
               </FilterField>
             )}
-          </div>
 
-          <FilterField label="Tag">
-            <div
-              className={cn(
-                "rounded-lg border bg-background p-2 space-y-2",
-                tagLocked && "opacity-70 pointer-events-none"
-              )}
-            >
-              {activeTag ? (
-                <div className="flex flex-wrap items-center gap-2 px-1">
-                  <span className="text-xs font-medium">{activeTag.path}</span>
-                  {!tagLocked && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 px-2 text-xs"
-                      onClick={() => onTagFilterChange("all")}
-                    >
-                      Clear
-                    </Button>
+            <FilterField label="Tag">
+              <Select
+                value={tagFilter}
+                onValueChange={(v) => v && onTagFilterChange(v)}
+                disabled={tagLocked}
+              >
+                <SelectTrigger
+                  className={cn(
+                    "w-full h-9 rounded-lg bg-background",
+                    tagLocked && "opacity-70"
                   )}
-                </div>
-              ) : (
-                <p className="px-1 text-xs text-muted-foreground">
-                  Click a tag to filter. Parent tags include child tags.
-                </p>
-              )}
-              <TagTree
-                tree={tagTree}
-                search={tagSearch}
-                onSearchChange={setTagSearch}
-                activeId={tagFilter === "all" ? null : tagFilter}
-                onNodeClick={(id) => onTagFilterChange(id)}
-                showCounts
-              />
-              <label className="flex items-center gap-2 px-1 text-xs text-muted-foreground">
-                <input
-                  type="checkbox"
-                  checked={tagFilterExact}
-                  onChange={(e) => onTagFilterExactChange(e.target.checked)}
-                  disabled={tagFilter === "all"}
-                  className="rounded border-input"
-                />
-                Exact tag only (exclude child tags)
-              </label>
-            </div>
-          </FilterField>
+                >
+                  <SelectValue>
+                    {tagFilter === "all"
+                      ? "All tags"
+                      : (activeTag?.name ?? "Tag")}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent
+                  alignItemWithTrigger={false}
+                  side="bottom"
+                  sideOffset={4}
+                >
+                  <SelectItem value="all">All tags</SelectItem>
+                  {tags.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {t.name}
+                      {t.word_count > 0 ? ` (${t.word_count})` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </FilterField>
+          </div>
         </div>
       )}
 
@@ -379,7 +348,7 @@ export function MyWordsFilters({
           )}
           {tagFilter !== "all" && !tagLocked && activeTag && (
             <FilterChip
-              label={activeTag.path}
+              label={activeTag.name}
               onClear={() => onTagFilterChange("all")}
             />
           )}

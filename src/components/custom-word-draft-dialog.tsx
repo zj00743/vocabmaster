@@ -21,8 +21,8 @@ import type {
 } from "@/lib/word-card-edit-types";
 import type { Word, WordWithProgress } from "@/lib/types";
 import { normalizeWord } from "@/lib/word-utils";
-import { useTagTree } from "@/components/tag-picker";
-import type { TagTreeNode } from "@/lib/tags";
+import { useTags } from "@/components/tag-picker";
+import type { TagWithCount } from "@/lib/tags";
 
 const DRAFT_PLACEHOLDER_ID = "00000000-0000-0000-0000-000000000001";
 
@@ -77,7 +77,7 @@ export function CustomWordDraftDialog({
   const [antonymsText, setAntonymsText] = useState("");
   const [collocationsText, setCollocationsText] = useState("");
   const [tagIds, setTagIds] = useState<string[]>([]);
-  const { tree: tagTree } = useTagTree(true);
+  const { tags } = useTags(true);
   const [partOfSpeech, setPartOfSpeech] = useState("");
   const [ipa, setIpa] = useState("");
 
@@ -131,30 +131,12 @@ export function CustomWordDraftDialog({
     };
   }, [open, seed, resetFromSeed]);
 
-  const flatTags = useMemo(() => {
-    const out: TagTreeNode[] = [];
-    const walk = (nodes: TagTreeNode[]) => {
-      for (const n of nodes) {
-        out.push(n);
-        walk(n.children);
-      }
-    };
-    walk(tagTree);
-    return out;
-  }, [tagTree]);
-
   const previewWord = useMemo((): WordWithProgress | null => {
     if (!seed) return null;
-    const tags = tagIds
-      .map((id) => flatTags.find((t) => t.id === id))
-      .filter((t): t is TagTreeNode => Boolean(t))
-      .map((t) => ({
-        id: t.id,
-        name: t.name,
-        parent_id: t.parent_id,
-        path: t.path,
-        depth: t.depth,
-      }));
+    const wordTags = tagIds
+      .map((id) => tags.find((t) => t.id === id))
+      .filter((t): t is TagWithCount => Boolean(t))
+      .map((t) => ({ id: t.id, name: t.name }));
     return normalizeWord({
       id: DRAFT_PLACEHOLDER_ID,
       word: lemma.trim() || seed.lemma.trim(),
@@ -162,7 +144,7 @@ export function CustomWordDraftDialog({
       translation_zh: translationZh.trim(),
       ipa: ipa.trim(),
       part_of_speech: partOfSpeech.trim(),
-      tags,
+      tags: wordTags,
       example_sentences: linesToArray(examplesText),
       synonyms: linesToArray(synonymsText),
       antonyms: linesToArray(antonymsText),
@@ -184,7 +166,7 @@ export function CustomWordDraftDialog({
     ipa,
     partOfSpeech,
     tagIds,
-    flatTags,
+    tags,
     examplesText,
     synonymsText,
     antonymsText,
@@ -338,7 +320,7 @@ export function CustomWordDraftDialog({
   const handleConfirm = async () => {
     const trimmedLemma = lemma.trim();
     if (!trimmedLemma) {
-      toast.error("Word or phrase cannot be empty");
+      toast.error("Word or expression cannot be empty");
       return;
     }
     if (editingSectionRef.current !== null) {

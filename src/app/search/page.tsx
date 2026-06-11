@@ -52,11 +52,10 @@ function isUuid(id: unknown): id is string {
 
 const MANUAL_ADD_OPTIONS: { type: EntryType; label: string }[] = [
   { type: "word", label: "Add word manually" },
-  { type: "phrase", label: "Add phrase" },
-  { type: "sentence_pattern", label: "Add sentence pattern" },
+  { type: "expression", label: "Add expression" },
 ];
 
-/** "Add manually" split into a type picker (word / phrase / sentence pattern). */
+/** "Add manually" split into a type picker (word / expression). */
 function ManualAddMenu({
   saving,
   disabled,
@@ -235,7 +234,7 @@ export default function SearchPage() {
   /* Manual add creates a minimal custom card and drops the user on the word
      detail page (same destination as tapping a word in My Words), where they
      fill in the sections via the inline edit pages. The chosen entry type
-     (word / phrase / sentence pattern) is stored on the card. */
+     (word / expression) is stored on the card. */
   const handleAddManually = async (entryType: EntryType) => {
     const lemma = query.trim();
     if (!lemma) return;
@@ -435,7 +434,7 @@ export default function SearchPage() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={
-              listening ? "Listening…" : "Search for a word or phrase…"
+              listening ? "Listening…" : "Search for a word or expression…"
             }
             className={cn("pl-10 h-12 text-base", voiceSupported && "pr-12")}
           />
@@ -564,7 +563,7 @@ export default function SearchPage() {
               </Button>
             </div>
             <p className="text-xs text-muted-foreground max-w-sm mx-auto px-2">
-              Add manually saves the word or phrase to My Words. You can edit
+              Add manually saves the word or expression to My Words. You can edit
               the card on the back. Generate with AI optionally fills more
               fields (requires OpenAI).
             </p>

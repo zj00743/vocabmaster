@@ -15,8 +15,8 @@ import {
   type EntryTypeFilter,
   applyEntryTypeFilter,
   isValidEntryTypeFilter,
-  isStoredEntryType,
-  deriveStoredEntryType,
+  normalizeEntryTypeFilter,
+  normalizeEntryTypeForStorage,
 } from "@/lib/word-entry";
 import {
   attachTagsToWords,
@@ -74,9 +74,6 @@ async function getMyWords(request: NextRequest) {
   const q = params.get("q")?.trim() ?? "";
   const status = params.get("status");
   const tagId = params.get("tag_id")?.trim() ?? "";
-  const includeDescendants =
-    params.get("include_descendants") !== "0" &&
-    params.get("exact_tag") !== "1";
   const frequencyParam = params.get("frequency") ?? "all";
   const entryTypeParam = params.get("entry_type") ?? "all";
   const sortParam = params.get("sort") ?? "added";
@@ -85,16 +82,14 @@ async function getMyWords(request: NextRequest) {
     ? frequencyParam
     : "all";
   const entryType: EntryTypeFilter = isValidEntryTypeFilter(entryTypeParam)
-    ? entryTypeParam
+    ? normalizeEntryTypeFilter(entryTypeParam)
     : "all";
   const sort: WordSort = isValidWordSort(sortParam) ? sortParam : "added";
   const dateAdded: DateAddedFilter = isValidDateAddedFilter(dateAddedParam)
     ? dateAddedParam
     : "all";
   const effectiveFrequency =
-    entryType === "phrase" || entryType === "sentence_pattern"
-      ? ("all" as const)
-      : frequency;
+    entryType === "expression" ? ("all" as const) : frequency;
 
   const idsOnly =
     params.get("ids_only") === "1" || params.get("ids_only") === "true";
@@ -117,7 +112,7 @@ async function getMyWords(request: NextRequest) {
   }
 
   if (tagId && tagId !== "all") {
-    const wordIds = await getWordIdsForTagFilter(tagId, includeDescendants);
+    const wordIds = await getWordIdsForTagFilter(tagId);
     if (wordIds.length === 0) {
       return NextResponse.json({
         data: [],
@@ -223,9 +218,6 @@ async function getMyWords(request: NextRequest) {
 async function getCorpusWords(request: NextRequest) {
   const params = request.nextUrl.searchParams;
   const tagId = params.get("tag_id")?.trim() ?? "";
-  const includeDescendants =
-    params.get("include_descendants") !== "0" &&
-    params.get("exact_tag") !== "1";
   const status = params.get("status");
   const q = params.get("q")?.trim() ?? "";
   const frequencyParam = params.get("frequency") ?? "all";
@@ -235,13 +227,11 @@ async function getCorpusWords(request: NextRequest) {
     ? frequencyParam
     : "all";
   const entryType: EntryTypeFilter = isValidEntryTypeFilter(entryTypeParam)
-    ? entryTypeParam
+    ? normalizeEntryTypeFilter(entryTypeParam)
     : "all";
   const sort: WordSort = isValidWordSort(sortParam) ? sortParam : "frequency";
   const effectiveFrequency =
-    entryType === "phrase" || entryType === "sentence_pattern"
-      ? ("all" as const)
-      : frequency;
+    entryType === "expression" ? ("all" as const) : frequency;
   const page = Math.max(1, parseInt(params.get("page") ?? "1", 10));
   const limit = Math.min(100, Math.max(1, parseInt(params.get("limit") ?? "20", 10)));
   const offset = (page - 1) * limit;
@@ -256,7 +246,7 @@ async function getCorpusWords(request: NextRequest) {
 
   let tagWordIds: string[] | null = null;
   if (tagId && tagId !== "all") {
-    tagWordIds = await getWordIdsForTagFilter(tagId, includeDescendants);
+    tagWordIds = await getWordIdsForTagFilter(tagId);
     if (tagWordIds.length === 0) {
       return NextResponse.json({
         data: [],
@@ -347,9 +337,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const entry_type = isStoredEntryType(body.entry_type)
-      ? body.entry_type
-      : deriveStoredEntryType(word);
+    const entry_type = normalizeEntryTypeForStorage(body.entry_type, word);
     const show_image =
       typeof body.show_image === "boolean" ? body.show_image : null;
 

@@ -1,4 +1,4 @@
-import type { TagWithPath } from "@/lib/tags";
+import type { Tag } from "@/lib/tags";
 
 export interface Word {
   id: string;
@@ -17,10 +17,10 @@ export interface Word {
   image_url: string | null;
   image_prompt: string | null;
   mnemonic: string | null;
-  tags?: TagWithPath[];
-  /** "word" | "phrase" | "sentence_pattern"; null on legacy rows (derive from text). */
+  tags?: Tag[];
+  /** "word" | "expression"; null on legacy rows (derive from text). */
   entry_type?: string | null;
-  /** Per-card image toggle; null = use default (off for sentence patterns). */
+  /** Per-card image toggle; null = use default (off for expressions). */
   show_image?: boolean | null;
   is_custom: boolean;
   created_at: string;

@@ -553,7 +553,7 @@ export function WordDetailBody({
                   variant="outline"
                   className="text-sm px-3 py-0.5 font-sans shrink-0"
                 >
-                  {tag.path}
+                  {tag.name}
                 </Badge>
               ))}
               {word.word_family?.trim() && (
@@ -1014,7 +1014,7 @@ export function WordDetailBody({
           )}
           {(word.tags ?? []).map((tag) => (
             <Badge key={tag.id} variant="secondary" className="font-sans text-xs">
-              {tag.path}
+              {tag.name}
             </Badge>
           ))}
         </div>

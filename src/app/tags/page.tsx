@@ -3,15 +3,27 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  ChevronRight,
-  FolderTree,
+  Check,
+  CheckSquare,
+  ExternalLink,
   GitMerge,
+  Loader2,
+  MoreVertical,
   Pencil,
   Plus,
+  Search,
   Trash2,
+  X,
 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import {
   Dialog,
@@ -28,58 +40,97 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { TagForest } from "@/components/tag-forest";
-import type { TagTreeNode } from "@/lib/tags";
+import type { TagWithCount } from "@/lib/tags";
+import { filterTags } from "@/lib/tags";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
-function flattenTree(nodes: TagTreeNode[]): TagTreeNode[] {
-  const out: TagTreeNode[] = [];
-  const walk = (list: TagTreeNode[]) => {
-    for (const n of list) {
-      out.push(n);
-      walk(n.children);
-    }
-  };
-  walk(nodes);
-  return out;
+function TagRowMenu({
+  tag,
+  onRename,
+  onMerge,
+  onDelete,
+}: {
+  tag: TagWithCount;
+  onRename: (tag: TagWithCount) => void;
+  onMerge: (tag: TagWithCount) => void;
+  onDelete: (tag: TagWithCount) => void;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            className="size-8 shrink-0"
+            aria-label={`Actions for ${tag.name}`}
+          />
+        }
+        onClick={(e) => e.stopPropagation()}
+      >
+        <MoreVertical className="size-4" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" side="bottom">
+        <DropdownMenuItem
+          render={
+            <Link
+              href={`/words?tag_id=${encodeURIComponent(tag.id)}&in_my_words=1`}
+            />
+          }
+        >
+          <ExternalLink className="size-4" />
+          View in My collections
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => onRename(tag)}>
+          <Pencil className="size-4" />
+          Rename
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => onMerge(tag)}>
+          <GitMerge className="size-4" />
+          Merge
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem variant="destructive" onClick={() => onDelete(tag)}>
+          <Trash2 className="size-4" />
+          Delete
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 }
 
 export default function TagsPage() {
-  const [tree, setTree] = useState<TagTreeNode[]>([]);
+  const [tags, setTags] = useState<TagWithCount[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
 
   const [createOpen, setCreateOpen] = useState(false);
   const [newName, setNewName] = useState("");
-  const [newParentId, setNewParentId] = useState<string>("__root__");
 
   const [renameOpen, setRenameOpen] = useState(false);
+  const [renameTargetId, setRenameTargetId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
 
-  const [moveOpen, setMoveOpen] = useState(false);
-  const [moveParentId, setMoveParentId] = useState<string>("__root__");
-
   const [mergeOpen, setMergeOpen] = useState(false);
+  const [mergeSourceIds, setMergeSourceIds] = useState<string[]>([]);
   const [mergeTargetId, setMergeTargetId] = useState("");
+  const [merging, setMerging] = useState(false);
 
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [deletePreview, setDeletePreview] = useState<{
-    path: string;
-    child_count: number;
-    word_count: number;
-    can_delete_only: boolean;
-  } | null>(null);
-  const [deleteMode, setDeleteMode] = useState<
-    "tag_only" | "tag_and_children" | "move_vocab"
-  >("tag_and_children");
-  const [deleteMoveTo, setDeleteMoveTo] = useState("__none__");
+  const [deleteTargetIds, setDeleteTargetIds] = useState<string[]>([]);
+  const [deleting, setDeleting] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const res = await fetch("/api/tags?in_my_words=1");
-      if (res.ok) setTree(await res.json());
+      if (res.ok) setTags(await res.json());
     } catch {
       // ignore
     } finally {
@@ -91,13 +142,55 @@ export default function TagsPage() {
     void load();
   }, [load]);
 
-  const flat = useMemo(() => flattenTree(tree), [tree]);
-  const selected = flat.find((t) => t.id === selectedId) ?? null;
+  const filtered = useMemo(() => filterTags(tags, search), [tags, search]);
+  const selectedCount = selectedIds.size;
+  const allFilteredSelected =
+    filtered.length > 0 && filtered.every((t) => selectedIds.has(t.id));
 
-  const openCreate = (parentId?: string) => {
-    setNewName("");
-    setNewParentId(parentId ?? "__root__");
-    setCreateOpen(true);
+  const renameTarget = tags.find((t) => t.id === renameTargetId) ?? null;
+  const deleteTargets = tags.filter((t) => deleteTargetIds.includes(t.id));
+  const mergeSources = tags.filter((t) => mergeSourceIds.includes(t.id));
+
+  const enterSelectMode = () => {
+    setSelectMode(true);
+    setSelectedIds(new Set());
+  };
+
+  const exitSelectMode = () => {
+    setSelectMode(false);
+    setSelectedIds(new Set());
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const selectAllFiltered = () => {
+    setSelectedIds(new Set(filtered.map((t) => t.id)));
+  };
+
+  const clearSelection = () => setSelectedIds(new Set());
+
+  const openRename = (tag: TagWithCount) => {
+    setRenameTargetId(tag.id);
+    setRenameValue(tag.name);
+    setRenameOpen(true);
+  };
+
+  const openMerge = (sourceIds: string[]) => {
+    setMergeSourceIds(sourceIds);
+    setMergeTargetId("");
+    setMergeOpen(true);
+  };
+
+  const openDelete = (ids: string[]) => {
+    setDeleteTargetIds(ids);
+    setDeleteOpen(true);
   };
 
   const handleCreate = async () => {
@@ -106,10 +199,7 @@ export default function TagsPage() {
     const res = await fetch("/api/tags", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name,
-        parent_id: newParentId === "__root__" ? null : newParentId,
-      }),
+      body: JSON.stringify({ name }),
     });
     if (!res.ok) {
       const j = (await res.json().catch(() => ({}))) as { error?: string };
@@ -118,12 +208,13 @@ export default function TagsPage() {
     }
     toast.success("Tag created");
     setCreateOpen(false);
+    setNewName("");
     await load();
   };
 
   const handleRename = async () => {
-    if (!selectedId) return;
-    const res = await fetch(`/api/tags/${selectedId}`, {
+    if (!renameTargetId) return;
+    const res = await fetch(`/api/tags/${renameTargetId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: renameValue.trim() }),
@@ -138,216 +229,269 @@ export default function TagsPage() {
     await load();
   };
 
-  const handleMove = async () => {
-    if (!selectedId) return;
-    const res = await fetch(`/api/tags/${selectedId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        parent_id: moveParentId === "__root__" ? null : moveParentId,
-      }),
-    });
-    if (!res.ok) {
-      const j = (await res.json().catch(() => ({}))) as { error?: string };
-      toast.error(j.error ?? "Could not move tag");
-      return;
-    }
-    toast.success("Tag moved");
-    setMoveOpen(false);
-    await load();
-  };
-
   const handleMerge = async () => {
-    if (!selectedId || !mergeTargetId) return;
-    const res = await fetch(`/api/tags/${selectedId}/merge`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ target_tag_id: mergeTargetId }),
-    });
-    if (!res.ok) {
-      const j = (await res.json().catch(() => ({}))) as { error?: string };
-      toast.error(j.error ?? "Could not merge tags");
-      return;
-    }
-    toast.success("Tags merged");
-    setMergeOpen(false);
-    setSelectedId(mergeTargetId);
-    await load();
-  };
+    const targetId = mergeTargetId.trim();
+    const sources = mergeSourceIds.filter((id) => id !== targetId);
+    if (!targetId || sources.length === 0 || merging) return;
 
-  const openDelete = async () => {
-    if (!selectedId) return;
-    const res = await fetch(`/api/tags/${selectedId}?preview=1`);
-    if (!res.ok) {
-      toast.error("Could not load tag info");
-      return;
+    setMerging(true);
+    try {
+      for (const sourceId of sources) {
+        const res = await fetch(`/api/tags/${sourceId}/merge`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ target_tag_id: targetId }),
+        });
+        if (!res.ok) {
+          const j = (await res.json().catch(() => ({}))) as { error?: string };
+          throw new Error(j.error ?? "Could not merge tags");
+        }
+      }
+      toast.success(
+        sources.length === 1 ? "Tags merged" : `${sources.length} tags merged`
+      );
+      setMergeOpen(false);
+      setSelectedIds(new Set());
+      setSelectMode(false);
+      await load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not merge tags");
+    } finally {
+      setMerging(false);
     }
-    const preview = await res.json();
-    setDeletePreview(preview);
-    setDeleteMode(
-      preview.can_delete_only ? "tag_only" : "tag_and_children"
-    );
-    setDeleteMoveTo("__none__");
-    setDeleteOpen(true);
   };
 
   const handleDelete = async () => {
-    if (!selectedId) return;
-    const params = new URLSearchParams({ mode: deleteMode });
-    if (deleteMode === "move_vocab" && deleteMoveTo !== "__none__") {
-      params.set("move_to", deleteMoveTo);
+    if (deleteTargetIds.length === 0 || deleting) return;
+    setDeleting(true);
+    try {
+      for (const id of deleteTargetIds) {
+        const res = await fetch(`/api/tags/${id}`, { method: "DELETE" });
+        if (!res.ok) {
+          const j = (await res.json().catch(() => ({}))) as { error?: string };
+          throw new Error(j.error ?? "Could not delete tag");
+        }
+      }
+      toast.success(
+        deleteTargetIds.length === 1
+          ? "Tag deleted"
+          : `${deleteTargetIds.length} tags deleted`
+      );
+      setDeleteOpen(false);
+      setSelectedIds(new Set());
+      setSelectMode(false);
+      await load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not delete tag");
+    } finally {
+      setDeleting(false);
     }
-    const res = await fetch(`/api/tags/${selectedId}?${params}`, {
-      method: "DELETE",
-    });
-    if (!res.ok) {
-      const j = (await res.json().catch(() => ({}))) as { error?: string };
-      toast.error(j.error ?? "Could not delete tag");
-      return;
-    }
-    toast.success("Tag deleted");
-    setDeleteOpen(false);
-    setSelectedId(null);
-    await load();
   };
 
   return (
     <AppShell>
-      <div className="px-4 py-6 md:px-8 md:py-8 max-w-6xl mx-auto w-full space-y-6">
+      <div
+        className={cn(
+          "px-4 py-6 md:px-8 md:py-8 max-w-3xl mx-auto w-full space-y-6",
+          selectMode && "pb-28 md:pb-24"
+        )}
+      >
         <div className="flex items-start justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Tags</h1>
-            <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
-              All top-level tags appear side by side. Expand a branch to drill
-              into sub-tags, or use search to jump to a match.
+            <p className="text-sm text-muted-foreground mt-1">
+              {selectMode
+                ? "Select tags for batch actions."
+                : "Use the menu on each tag to rename, merge, or delete."}
             </p>
           </div>
-          <Button size="sm" onClick={() => openCreate()} className="shrink-0">
-            <Plus className="size-4 mr-1" />
-            New tag
-          </Button>
+          <div className="flex items-center gap-2 shrink-0">
+            {filtered.length > 0 && !selectMode && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={enterSelectMode}
+              >
+                <CheckSquare className="size-4 mr-1.5" />
+                Select
+              </Button>
+            )}
+            {selectMode && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={exitSelectMode}
+              >
+                <X className="size-4 mr-1.5" />
+                Done
+              </Button>
+            )}
+            {!selectMode && (
+              <Button
+                size="sm"
+                onClick={() => {
+                  setNewName("");
+                  setCreateOpen(true);
+                }}
+              >
+                <Plus className="size-4 mr-1" />
+                New tag
+              </Button>
+            )}
+          </div>
+        </div>
+
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search tags…"
+            className="pl-10"
+          />
         </div>
 
         {loading ? (
           <p className="text-sm text-muted-foreground animate-pulse">Loading tags…</p>
+        ) : filtered.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            {search ? "No tags match your search." : "No tags yet. Create one to get started."}
+          </p>
         ) : (
-          <TagForest
-            tree={tree}
-            search={search}
-            onSearchChange={setSearch}
-            activeId={selectedId}
-            onNodeClick={(id) => setSelectedId(id)}
-            showCounts
-          />
-        )}
+          <ul className="rounded-xl border divide-y overflow-hidden">
+            {filtered.map((tag) => {
+              const selected = selectedIds.has(tag.id);
+              return (
+                <li
+                  key={tag.id}
+                  className={cn(
+                    "flex items-center gap-2 px-3 py-2.5 transition-colors",
+                    selectMode && selected && "bg-primary/5",
+                    selectMode && "cursor-pointer hover:bg-muted/40"
+                  )}
+                  onClick={
+                    selectMode ? () => toggleSelect(tag.id) : undefined
+                  }
+                >
+                  {selectMode && (
+                    <button
+                      type="button"
+                      role="checkbox"
+                      aria-checked={selected}
+                      aria-label={
+                        selected ? `Deselect ${tag.name}` : `Select ${tag.name}`
+                      }
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleSelect(tag.id);
+                      }}
+                      className={cn(
+                        "shrink-0 inline-flex items-center justify-center size-5 rounded border transition-colors",
+                        selected
+                          ? "bg-primary border-primary text-primary-foreground"
+                          : "border-border bg-background hover:border-primary/50"
+                      )}
+                    >
+                      {selected && <Check className="size-3" strokeWidth={3} />}
+                    </button>
+                  )}
 
-        <div className="rounded-xl border bg-muted/20 p-4 space-y-3">
-          {selected ? (
-            <>
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="space-y-1 min-w-0">
-                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    Selected tag
-                  </p>
-                  <p className="font-semibold text-base break-words">{selected.path}</p>
-                  <p className="text-sm text-muted-foreground tabular-nums">
-                    {selected.word_count} saved{" "}
-                    {selected.word_count === 1 ? "item" : "items"}
-                  </p>
-                </div>
-                <Link
-                  href={`/words?tag_id=${encodeURIComponent(selected.id)}&in_my_words=1`}
-                  className="inline-flex items-center gap-1 text-sm text-primary hover:underline shrink-0"
-                >
-                  View in My collections
-                  <ChevronRight className="size-4" />
-                </Link>
-              </div>
-              <div className="flex flex-wrap gap-2 pt-1 border-t border-border/60">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => {
-                    setRenameValue(selected.name);
-                    setRenameOpen(true);
-                  }}
-                >
-                  <Pencil className="size-3.5 mr-1" />
-                  Rename
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => {
-                    setMoveParentId(selected.parent_id ?? "__root__");
-                    setMoveOpen(true);
-                  }}
-                >
-                  <FolderTree className="size-3.5 mr-1" />
-                  Move
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => {
-                    setMergeTargetId("");
-                    setMergeOpen(true);
-                  }}
-                >
-                  <GitMerge className="size-3.5 mr-1" />
-                  Merge
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => openCreate(selected.id)}
-                >
-                  <Plus className="size-3.5 mr-1" />
-                  Add child
-                </Button>
-                <Button
-                  size="sm"
-                  variant="destructive"
-                  onClick={() => void openDelete()}
-                >
-                  <Trash2 className="size-3.5 mr-1" />
-                  Delete
-                </Button>
-              </div>
-            </>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              Click any tag above to rename, move, merge, or delete it.
-            </p>
-          )}
-        </div>
+                  {selectMode ? (
+                    <span className="flex-1 min-w-0 font-medium truncate">
+                      {tag.name}
+                    </span>
+                  ) : (
+                    <Link
+                      href={`/words?tag_id=${encodeURIComponent(tag.id)}&in_my_words=1`}
+                      className="flex-1 min-w-0 font-medium truncate hover:underline"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {tag.name}
+                    </Link>
+                  )}
+
+                  <span className="text-xs text-muted-foreground tabular-nums shrink-0">
+                    {tag.word_count} {tag.word_count === 1 ? "item" : "items"}
+                  </span>
+
+                  {!selectMode && (
+                    <TagRowMenu
+                      tag={tag}
+                      onRename={openRename}
+                      onMerge={(t) => openMerge([t.id])}
+                      onDelete={(t) => openDelete([t.id])}
+                    />
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </div>
+
+      {selectMode && (
+        <div
+          className="fixed inset-x-0 bottom-14 z-40 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 pb-[env(safe-area-inset-bottom)] md:bottom-0"
+          role="region"
+          aria-label="Bulk tag actions"
+        >
+          <div className="mx-auto flex max-w-3xl flex-wrap items-center gap-2 px-4 py-2.5 md:px-8">
+            <span className="text-sm font-medium mr-auto">
+              {selectedCount} selected
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={allFilteredSelected ? clearSelection : selectAllFiltered}
+              disabled={filtered.length === 0}
+            >
+              {allFilteredSelected
+                ? "Clear all"
+                : `Select all (${filtered.length})`}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={selectedCount < 2}
+              onClick={() => openMerge([...selectedIds])}
+            >
+              <GitMerge className="size-4 mr-1.5" />
+              Merge
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              disabled={selectedCount === 0}
+              onClick={() => openDelete([...selectedIds])}
+            >
+              <Trash2 className="size-4 mr-1.5" />
+              Delete{selectedCount > 0 ? ` (${selectedCount})` : ""}
+            </Button>
+          </div>
+        </div>
+      )}
 
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Create tag</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3">
-            <Input
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              placeholder="Tag name"
-            />
-            <Select value={newParentId} onValueChange={(v) => v && setNewParentId(v)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Parent" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__root__">Top level</SelectItem>
-                {flat.map((t) => (
-                  <SelectItem key={t.id} value={t.id}>
-                    {t.path}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <Input
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            placeholder="Tag name"
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                void handleCreate();
+              }
+            }}
+          />
           <DialogFooter>
             <Button onClick={() => void handleCreate()} disabled={!newName.trim()}>
               Create
@@ -360,6 +504,11 @@ export default function TagsPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Rename tag</DialogTitle>
+            {renameTarget && (
+              <DialogDescription>
+                Rename <span className="font-medium">{renameTarget.name}</span>
+              </DialogDescription>
+            )}
           </DialogHeader>
           <Input value={renameValue} onChange={(e) => setRenameValue(e.target.value)} />
           <DialogFooter>
@@ -370,132 +519,142 @@ export default function TagsPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={moveOpen} onOpenChange={setMoveOpen}>
-        <DialogContent>
+      <Dialog
+        open={mergeOpen}
+        onOpenChange={(open) => {
+          if (!open && !merging) setMergeOpen(false);
+        }}
+      >
+        <DialogContent showCloseButton={!merging}>
           <DialogHeader>
-            <DialogTitle>Move tag</DialogTitle>
+            <DialogTitle>
+              {mergeSources.length === 1
+                ? "Merge into another tag"
+                : `Merge ${mergeSources.length} tags into one`}
+            </DialogTitle>
             <DialogDescription>
-              Change where <span className="font-medium">{selected?.name}</span> lives in the tree.
+              {mergeSources.length === 1 ? (
+                <>
+                  All vocabulary tagged with{" "}
+                  <span className="font-medium">{mergeSources[0]?.name}</span>{" "}
+                  will move to the target tag.
+                </>
+              ) : (
+                <>
+                  These tags will be combined into one:{" "}
+                  <span className="font-medium">
+                    {mergeSources.map((t) => t.name).join(", ")}
+                  </span>
+                </>
+              )}
             </DialogDescription>
           </DialogHeader>
-          <Select value={moveParentId} onValueChange={(v) => v && setMoveParentId(v)}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__root__">Top level</SelectItem>
-              {flat
-                .filter((t) => t.id !== selectedId)
-                .map((t) => (
-                  <SelectItem key={t.id} value={t.id}>
-                    {t.path}
-                  </SelectItem>
-                ))}
-            </SelectContent>
-          </Select>
-          <DialogFooter>
-            <Button onClick={() => void handleMove()}>Move</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={mergeOpen} onOpenChange={setMergeOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Merge into another tag</DialogTitle>
-            <DialogDescription>
-              All vocabulary tagged with{" "}
-              <span className="font-medium">{selected?.path}</span> will also get
-              the target tag. Child tags become children of the target.
-            </DialogDescription>
-          </DialogHeader>
-          <Select value={mergeTargetId} onValueChange={(v) => v && setMergeTargetId(v)}>
+          <Select
+            value={mergeTargetId}
+            onValueChange={(v) => v && setMergeTargetId(v)}
+            disabled={merging}
+          >
             <SelectTrigger>
               <SelectValue placeholder="Target tag" />
             </SelectTrigger>
             <SelectContent>
-              {flat
-                .filter((t) => t.id !== selectedId)
+              {tags
+                .filter((t) => !mergeSourceIds.includes(t.id))
                 .map((t) => (
                   <SelectItem key={t.id} value={t.id}>
-                    {t.path}
+                    {t.name}
+                  </SelectItem>
+                ))}
+              {mergeSourceIds.length > 1 &&
+                mergeSources.map((t) => (
+                  <SelectItem key={t.id} value={t.id}>
+                    {t.name} (keep this one)
                   </SelectItem>
                 ))}
             </SelectContent>
           </Select>
           <DialogFooter>
-            <Button onClick={() => void handleMerge()} disabled={!mergeTargetId}>
-              Merge
+            <Button
+              variant="outline"
+              disabled={merging}
+              onClick={() => setMergeOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => void handleMerge()}
+              disabled={!mergeTargetId || merging}
+            >
+              {merging ? (
+                <>
+                  <Loader2 className="size-4 mr-1.5 animate-spin" />
+                  Merging…
+                </>
+              ) : (
+                "Merge"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <DialogContent>
+      <Dialog
+        open={deleteOpen}
+        onOpenChange={(open) => {
+          if (!open && !deleting) setDeleteOpen(false);
+        }}
+      >
+        <DialogContent showCloseButton={!deleting}>
           <DialogHeader>
-            <DialogTitle>Delete tag</DialogTitle>
+            <DialogTitle>
+              {deleteTargets.length === 1
+                ? "Delete tag"
+                : `Delete ${deleteTargets.length} tags`}
+            </DialogTitle>
             <DialogDescription>
-              {deletePreview ? (
+              {deleteTargets.length === 1 ? (
                 <>
-                  Delete <span className="font-medium">{deletePreview.path}</span>?
-                  {deletePreview.child_count > 0 && (
-                    <> It has {deletePreview.child_count} child tag(s).</>
-                  )}
-                  {deletePreview.word_count > 0 && (
-                    <> {deletePreview.word_count} vocabulary item(s) use this tag.</>
+                  Delete <span className="font-medium">{deleteTargets[0]?.name}</span>?
+                  {deleteTargets[0] && deleteTargets[0].word_count > 0 && (
+                    <>
+                      {" "}
+                      {deleteTargets[0].word_count} vocabulary item(s) will lose
+                      this tag (the words themselves are not deleted).
+                    </>
                   )}
                 </>
-              ) : null}
+              ) : (
+                <>
+                  Delete{" "}
+                  <span className="font-medium">
+                    {deleteTargets.map((t) => t.name).join(", ")}
+                  </span>
+                  ? Vocabulary will lose these tags; words are not deleted.
+                </>
+              )}
             </DialogDescription>
           </DialogHeader>
-          {!deletePreview?.can_delete_only && (
-            <div className="space-y-2">
-              <Select
-                value={deleteMode}
-                onValueChange={(v) =>
-                  v &&
-                  setDeleteMode(
-                    v as "tag_only" | "tag_and_children" | "move_vocab"
-                  )
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="tag_and_children">
-                    Delete tag and all child tags
-                  </SelectItem>
-                  <SelectItem value="move_vocab">
-                    Move vocabulary to another tag, then delete
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-              {deleteMode === "move_vocab" && (
-                <Select
-                  value={deleteMoveTo}
-                  onValueChange={(v) => v && setDeleteMoveTo(v)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Move vocabulary to…" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {flat
-                      .filter((t) => t.id !== selectedId)
-                      .map((t) => (
-                        <SelectItem key={t.id} value={t.id}>
-                          {t.path}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-              )}
-            </div>
-          )}
           <DialogFooter>
-            <Button variant="destructive" onClick={() => void handleDelete()}>
-              Delete
+            <Button
+              variant="outline"
+              disabled={deleting}
+              onClick={() => setDeleteOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={deleting}
+              onClick={() => void handleDelete()}
+            >
+              {deleting ? (
+                <>
+                  <Loader2 className="size-4 mr-1.5 animate-spin" />
+                  Deleting…
+                </>
+              ) : (
+                "Delete"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
