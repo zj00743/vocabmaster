@@ -73,6 +73,25 @@ export function editLinesToDefinition(editText: string): string {
   return lines.join(" · ");
 }
 
+export function hasStoredEnglishDefinition(word: WordWithProgress): boolean {
+  return Boolean(word.definition?.trim());
+}
+
+export function hasStoredChineseDefinition(word: WordWithProgress): boolean {
+  return Boolean(word.translation_zh?.trim());
+}
+
+/** Prefer 中文 when the card has no English gloss (stored or live dictionary hint). */
+export function defaultDefinitionLang(
+  word: WordWithProgress,
+  opts?: { dictionaryHint?: string | null }
+): "en" | "zh" {
+  const hasEn =
+    hasStoredEnglishDefinition(word) || Boolean(opts?.dictionaryHint?.trim());
+  if (!hasEn && hasStoredChineseDefinition(word)) return "zh";
+  return "en";
+}
+
 export function frontHint(
   word: WordWithProgress,
   opts?: { rankShownOnCard?: boolean; skipMnemonic?: boolean }
@@ -143,6 +162,12 @@ export function flashcardFrontGlossDisplay(
     if (fromHint) {
       return fromHint;
     }
+  }
+  const firstZh = splitStoredDefinitionLines(
+    word.translation_zh ?? ""
+  )[0]?.trim();
+  if (firstZh) {
+    return firstZh;
   }
   return frontHint(word, {
     rankShownOnCard: opts?.rankShownOnCard ?? word.rank != null,

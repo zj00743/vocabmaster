@@ -28,6 +28,7 @@ import type {
 } from "@/lib/word-card-edit-types";
 import { WordDetailBody } from "@/components/word-detail-body";
 import {
+  defaultDefinitionLang,
   flashcardFrontGlossDisplay,
   normalizeWord,
 } from "@/lib/word-utils";
@@ -205,7 +206,7 @@ export function Flashcard({
   }, [word.word, suppressDictionaryHints]);
 
   const [frontDefinitionLang, setFrontDefinitionLang] = useState<"en" | "zh">(
-    "en"
+    () => defaultDefinitionLang(word)
   );
 
   const displayGloss = useMemo(
@@ -239,7 +240,7 @@ export function Flashcard({
   useEffect(() => {
     setWordVisible(false);
     setRevealCount(0);
-    setFrontDefinitionLang("en");
+    setFrontDefinitionLang(defaultDefinitionLang(word));
   }, [word.id]);
 
   const [speechOk, setSpeechOk] = useState(false);

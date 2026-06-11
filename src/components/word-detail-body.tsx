@@ -8,7 +8,13 @@ import { Input } from "@/components/ui/input";
 import { WordTypeBadge } from "@/components/word-entry-badges";
 import { isPhraseEntry, resolveShowImage } from "@/lib/word-entry";
 import type { WordWithProgress } from "@/lib/types";
-import { normalizeWord, splitStoredDefinitionLines, definitionToEditLines, editLinesToDefinition } from "@/lib/word-utils";
+import {
+  normalizeWord,
+  splitStoredDefinitionLines,
+  definitionToEditLines,
+  editLinesToDefinition,
+  defaultDefinitionLang,
+} from "@/lib/word-utils";
 import { cn } from "@/lib/utils";
 import { WordImageUrlForm } from "@/components/word-image-url-form";
 import { ExampleSentencesEditor } from "@/components/example-sentences-editor";
@@ -295,10 +301,14 @@ export function WordDetailBody({
   const fc = variant === "flashcard";
   const sect = fc && sectionEdit ? sectionEdit : undefined;
   const browse = fc && browseEdit ? browseEdit : undefined;
-  const [definitionLang, setDefinitionLang] = useState<"en" | "zh">("en");
+  const [definitionLang, setDefinitionLang] = useState<"en" | "zh">(() =>
+    defaultDefinitionLang(word, { dictionaryHint: dictionaryHintFallback })
+  );
   useEffect(() => {
-    setDefinitionLang("en");
-  }, [word.id]);
+    setDefinitionLang(
+      defaultDefinitionLang(word, { dictionaryHint: dictionaryHintFallback })
+    );
+  }, [word.id, dictionaryHintFallback]);
 
   return (
     <div
@@ -702,7 +712,22 @@ export function WordDetailBody({
                         ? uniqueDefinitionBullets(hint)
                         : [];
                   if (bullets.length === 0) {
-                    return null;
+                    const zhBullets = uniqueDefinitionBullets(
+                      word.translation_zh ?? ""
+                    );
+                    if (zhBullets.length === 0) return null;
+                    return (
+                      <ul
+                        className={cn(
+                          fcListClass,
+                          "text-foreground/85 min-h-[1.25rem]"
+                        )}
+                      >
+                        {zhBullets.map((line, i) => (
+                          <li key={i}>{line}</li>
+                        ))}
+                      </ul>
+                    );
                   }
                   return (
                     <ul
