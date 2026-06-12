@@ -28,7 +28,7 @@ function WordsLayoutInner({ children }: { children: React.ReactNode }) {
 
   return (
     <AppShell>
-      <div className="flex min-h-0 flex-1 overflow-hidden">
+      <div className="flex h-dvh min-h-0 overflow-hidden">
         {isListPage && (
           <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
             <Suspense fallback={<ListFallback />}>
@@ -47,7 +47,7 @@ function WordsLayoutInner({ children }: { children: React.ReactNode }) {
                 />
               </Suspense>
             </aside>
-            <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden max-md:hidden">
+            <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden max-md:hidden">
               {children}
             </div>
           </>

@@ -442,14 +442,14 @@ export function MyWordsList({
   return (
     <div
       className={cn(
-        "flex h-full min-h-0 flex-col",
-        isSidebar ? "overflow-hidden" : "w-full"
+        "flex h-full min-h-0 flex-col overflow-hidden",
+        !isSidebar && "w-full"
       )}
     >
       <div
         ref={listScrollRef}
         className={cn(
-          "min-h-0 flex-1 space-y-4 overflow-y-auto",
+          "min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-y-contain",
           isSidebar
             ? "px-3 py-4 pb-4"
             : "mx-auto w-full max-w-4xl px-4 py-6 pb-28 md:px-8 md:py-8"
