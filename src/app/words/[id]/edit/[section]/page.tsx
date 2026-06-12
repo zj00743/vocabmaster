@@ -6,7 +6,6 @@ import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
-import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { WordSectionEditForm } from "@/components/word-section-edit-form";
 import {
@@ -144,6 +143,7 @@ function WordSectionEditInner() {
 
   /* Lock document scroll on mobile so Save/Cancel stay pinned to the viewport. */
   useEffect(() => {
+    if (window.matchMedia("(min-width: 768px)").matches) return;
     const prevOverflow = document.body.style.overflow;
     const prevPadding = document.body.style.paddingBottom;
     document.body.style.overflow = "hidden";
@@ -211,11 +211,9 @@ function WordSectionEditInner() {
 
   if (!id || !sectionId) {
     return (
-      <AppShell>
-        <div className="mx-auto max-w-3xl px-4 py-12 text-muted-foreground">
-          Invalid link.
-        </div>
-      </AppShell>
+      <div className="mx-auto max-w-3xl px-4 py-12 text-muted-foreground">
+        Invalid link.
+      </div>
     );
   }
 
@@ -223,9 +221,9 @@ function WordSectionEditInner() {
   const showEditor = !loading && word && values;
 
   return (
-    <AppShell>
-      <div className="fixed inset-0 z-30 flex flex-col overflow-hidden bg-background md:static md:z-auto md:h-dvh md:max-h-dvh md:min-h-0">
-        <header className="shrink-0 border-b bg-background px-4 pb-3 pt-4">
+    <div className="fixed inset-0 z-30 flex h-dvh max-h-dvh min-h-0 flex-col overflow-hidden bg-background md:static md:z-auto md:h-full md:max-h-none md:flex-1">
+      <div className="mx-auto flex w-full max-w-3xl min-h-0 flex-1 flex-col overflow-hidden md:max-w-none md:px-8">
+        <header className="shrink-0 border-b bg-background px-4 pb-3 pt-4 md:px-0">
           <div className="flex min-w-0 items-center gap-2">
             <Link href={`/words/${id}?tab=back`} className="shrink-0">
               <Button
@@ -278,7 +276,7 @@ function WordSectionEditInner() {
           />
         )}
       </div>
-    </AppShell>
+    </div>
   );
 }
 
@@ -286,11 +284,9 @@ export default function WordSectionEditPage() {
   return (
     <Suspense
       fallback={
-        <AppShell>
-          <div className="mx-auto max-w-3xl px-4 py-12 text-muted-foreground">
-            Loading…
-          </div>
-        </AppShell>
+        <div className="mx-auto max-w-3xl px-4 py-12 text-muted-foreground">
+          Loading…
+        </div>
       }
     >
       <WordSectionEditInner />

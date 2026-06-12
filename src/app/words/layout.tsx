@@ -16,15 +16,11 @@ function ListFallback() {
 
 function WordsLayoutInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const isEditRoute = /^\/words\/[^/]+\/edit/.test(pathname);
   const detailMatch = pathname.match(/^\/words\/([^/]+)$/);
-  const selectedWordId = detailMatch?.[1];
+  const editMatch = pathname.match(/^\/words\/([^/]+)\/edit(?:\/|$)/);
+  const selectedWordId = detailMatch?.[1] ?? editMatch?.[1];
   const isListPage = pathname === "/words";
   const panelOpen = Boolean(selectedWordId);
-
-  if (isEditRoute) {
-    return <>{children}</>;
-  }
 
   return (
     <AppShell>
