@@ -42,6 +42,20 @@ export function sectionFieldsFromWord(word: WordWithProgress): SectionFieldValue
   };
 }
 
+/** Pre-fill empty EN definition fields with the same dictionary hint shown on the card. */
+export function applyDictionaryHintToSectionFields(
+  sectionId: WordEditSectionSlug,
+  values: SectionFieldValues,
+  hint: string | null | undefined
+): SectionFieldValues {
+  const h = hint?.trim();
+  if (!h || values.definition.trim()) return values;
+  if (sectionId === "definition-en" || sectionId === "back_definition") {
+    return { ...values, definition: definitionToEditLines(h) };
+  }
+  return values;
+}
+
 function linesFromText(text: string): string[] {
   return text
     .split(/\n/)

@@ -14,6 +14,7 @@ import {
   wordEditSectionLabel,
 } from "@/lib/word-section-meta";
 import {
+  applyDictionaryHintToSectionFields,
   buildSectionPatchPayload,
   sectionFieldsFromWord,
   validateSectionFields,
@@ -21,7 +22,7 @@ import {
 } from "@/lib/word-section-save";
 import { formatWordSaveError } from "@/lib/word-entry";
 import type { WordWithProgress } from "@/lib/types";
-import { normalizeWord } from "@/lib/word-utils";
+import { hasStoredEnglishDefinition, normalizeWord } from "@/lib/word-utils";
 
 function EditPageFooter({
   wordId,
@@ -103,7 +104,32 @@ function WordSectionEditInner() {
         progress,
       } as WordWithProgress);
       setWord(merged);
-      setValues(sectionFieldsFromWord(merged));
+      let fields = sectionFieldsFromWord(merged);
+      if (
+        sectionId &&
+        (sectionId === "definition-en" || sectionId === "back_definition") &&
+        !hasStoredEnglishDefinition(merged)
+      ) {
+        try {
+          const hintRes = await fetch(
+            `/api/dictionary-hint?word=${encodeURIComponent(merged.word)}`
+          );
+          const j = (await hintRes.json()) as {
+            hint?: string | null;
+            source?: string;
+          };
+          if (j.hint && j.source && j.source !== "none") {
+            fields = applyDictionaryHintToSectionFields(
+              sectionId,
+              fields,
+              j.hint
+            );
+          }
+        } catch {
+          // ignore — editor stays empty
+        }
+      }
+      setValues(fields);
     } catch {
       toast.error("Could not load word");
       setNotFound(true);
