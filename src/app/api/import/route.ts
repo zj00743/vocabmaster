@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
 
     for (let i = 0; i < words.length; i += BATCH_SIZE) {
       const batch = words.slice(i, i + BATCH_SIZE).map((w: Record<string, unknown>) => ({
-        word: String(w.word || '').trim().toLowerCase(),
+        word: String(w.word || '').trim(),
         entry_type: normalizeEntryTypeForStorage(null, String(w.word || '')),
         definition: String(w.definition || ''),
         translation_zh: String(w.translation_zh || ''),

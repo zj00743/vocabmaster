@@ -86,9 +86,7 @@ export function buildSectionPatchPayload(
       };
       if (word.is_custom) {
         const lemma = values.lemma.trim() || word.word;
-        // Only touch `word` when the lemma text changed. Re-sending a
-        // lowercased copy on entry_type-only edits can falsely collide with
-        // another row (e.g. "Design" → "design").
+        // Only touch `word` when the lemma text changed (avoids needless writes).
         if (!lemmasEqualForStorage(lemma, word.word ?? "")) {
           payload.word = normalizeLemmaForStorage(lemma);
         }

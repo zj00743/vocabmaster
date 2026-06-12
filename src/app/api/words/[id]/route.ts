@@ -129,7 +129,7 @@ export async function PATCH(
       const { data: duplicates, error: dupError } = await supabase
         .from('words')
         .select('id, word')
-        .ilike('word', normalized)
+        .eq('word', normalized)
         .neq('id', id)
         .limit(1);
 

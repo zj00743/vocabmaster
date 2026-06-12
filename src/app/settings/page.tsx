@@ -101,7 +101,7 @@ function parseCSV(content: string) {
         ? cols[customIdx]?.toLowerCase() === "true"
         : false;
     rows.push({
-      word: word.toLowerCase(),
+      word,
       definition: defIdx !== -1 ? (cols[defIdx] ?? "") : "",
       translation_zh: zhIdx !== -1 ? (cols[zhIdx] ?? "") : "",
       ipa: ipaIdx !== -1 ? (cols[ipaIdx] ?? "") : "",

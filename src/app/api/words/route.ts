@@ -344,7 +344,7 @@ export async function POST(request: NextRequest) {
     const { data, error } = await supabase
       .from("words")
       .insert({
-        word: word.trim().toLowerCase(),
+        word: word.trim(),
         entry_type,
         show_image,
         definition: definition ?? "",

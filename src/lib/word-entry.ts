@@ -115,9 +115,9 @@ export function entryTypeLabel(type: EntryType): string {
   return entryTypeBadgeLabel(type);
 }
 
-/** Normalize lemma text for storage (matches POST /api/words). */
+/** Normalize lemma text for storage (trim only; casing is preserved). */
 export function normalizeLemmaForStorage(lemma: string): string {
-  return lemma.trim().toLowerCase();
+  return lemma.trim();
 }
 
 /** True when two lemmas would persist as the same `words.word` value. */
