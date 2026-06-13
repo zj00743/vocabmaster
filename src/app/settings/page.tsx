@@ -26,6 +26,7 @@ import { getSettings, saveSettings } from "@/lib/settings";
 import { CATEGORIES } from "@/lib/types";
 import type { UserSettings } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { parseCollectionsImportCsv } from "@/lib/collections-import-csv";
 
 function parseCsvLine(line: string, delimiter: string): string[] {
   const out: string[] = [];
@@ -130,10 +131,12 @@ export default function SettingsPage() {
   const [clearing, setClearing] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [collectionsImporting, setCollectionsImporting] = useState(false);
   const [exporting, setExporting] = useState<
     "all" | "corpus" | "my_words" | null
   >(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const collectionsFileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setSettings(getSettings());
@@ -181,6 +184,67 @@ export default function SettingsPage() {
       ? current.filter((c) => c !== cat)
       : [...current, cat];
     updateSetting("categories", next);
+  };
+
+  const handleCollectionsImport = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setCollectionsImporting(true);
+    try {
+      const content = await file.text();
+      const rows = parseCollectionsImportCsv(content);
+
+      if (rows.length === 0) {
+        toast.error("No words found in the CSV file");
+        return;
+      }
+
+      const res = await fetch("/api/import/collections", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rows }),
+      });
+
+      const data = (await res.json().catch(() => ({}))) as {
+        added?: number;
+        already_in_collection?: number;
+        skipped?: number;
+        tags_created?: number;
+        errors?: string[];
+        error?: string;
+      };
+
+      if (!res.ok) {
+        toast.error(data.error ?? "Import failed");
+        return;
+      }
+
+      const parts = [
+        data.added ? `${data.added} added` : null,
+        data.already_in_collection
+          ? `${data.already_in_collection} already in collections`
+          : null,
+        data.tags_created ? `${data.tags_created} new tags created` : null,
+      ].filter(Boolean);
+
+      if (parts.length > 0) {
+        toast.success(`Import complete: ${parts.join(", ")}`);
+      } else {
+        toast.message("Nothing new to import");
+      }
+
+      if (data.errors?.length) {
+        toast.error(data.errors.slice(0, 3).join("; "));
+      }
+    } catch {
+      toast.error("Import failed");
+    } finally {
+      setCollectionsImporting(false);
+      if (collectionsFileRef.current) collectionsFileRef.current.value = "";
+    }
   };
 
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -346,10 +410,72 @@ export default function SettingsPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Vocabulary CSV</CardTitle>
+            <CardTitle>Import to My collections</CardTitle>
             <CardDescription>
-              Import a CoCA-style list or download your vocabulary from the
-              database (same columns — you can edit and re-upload).
+              Batch-add words and expressions to your study list from a CSV.
+              Multiple tags per row are supported — use{" "}
+              <span className="font-mono">|</span> between tag names. New tags
+              are created automatically if they do not exist yet.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <input
+              ref={collectionsFileRef}
+              type="file"
+              accept=".csv,.tsv,text/csv"
+              onChange={handleCollectionsImport}
+              className="hidden"
+            />
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="default"
+                onClick={() => collectionsFileRef.current?.click()}
+                disabled={
+                  collectionsImporting || importing || exporting !== null
+                }
+                className="gap-2"
+              >
+                {collectionsImporting ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Upload className="size-4" />
+                )}
+                {collectionsImporting
+                  ? "Importing..."
+                  : "Upload to My collections"}
+              </Button>
+              <a
+                href="/templates/my-collections-import-template.csv"
+                download
+                className="inline-flex"
+              >
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                >
+                  <Download className="size-4" />
+                  Download template
+                </Button>
+              </a>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Required column: <span className="font-mono">word</span>.
+              Optional: entry_type, definition, translation_zh, tags, examples,
+              and more. If a word is already in the CoCA bank, its rank is kept
+              automatically.
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>CoCA vocabulary bank</CardTitle>
+            <CardDescription>
+              Import a CoCA-style list into the searchable word bank (not My
+              collections). Use this only to load corpus data for frequency
+              rankings.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -364,7 +490,9 @@ export default function SettingsPage() {
               <Button
                 variant="outline"
                 onClick={() => fileRef.current?.click()}
-                disabled={importing || exporting !== null}
+                disabled={
+                  importing || collectionsImporting || exporting !== null
+                }
                 className="gap-2"
               >
                 {importing ? (
@@ -372,7 +500,7 @@ export default function SettingsPage() {
                 ) : (
                   <Upload className="size-4" />
                 )}
-                {importing ? "Importing..." : "Upload CSV"}
+                {importing ? "Importing..." : "Upload CoCA CSV"}
               </Button>
             </div>
             <div className="space-y-2">
@@ -384,7 +512,9 @@ export default function SettingsPage() {
                   variant="outline"
                   size="sm"
                   className="gap-2 justify-start"
-                  disabled={importing || exporting !== null}
+                  disabled={
+                    importing || collectionsImporting || exporting !== null
+                  }
                   onClick={() => void handleDownloadCsv("corpus")}
                 >
                   {exporting === "corpus" ? (
@@ -398,7 +528,9 @@ export default function SettingsPage() {
                   variant="outline"
                   size="sm"
                   className="gap-2 justify-start"
-                  disabled={importing || exporting !== null}
+                  disabled={
+                    importing || collectionsImporting || exporting !== null
+                  }
                   onClick={() => void handleDownloadCsv("my_words")}
                 >
                   {exporting === "my_words" ? (
@@ -412,7 +544,9 @@ export default function SettingsPage() {
                   variant="outline"
                   size="sm"
                   className="gap-2 justify-start"
-                  disabled={importing || exporting !== null}
+                  disabled={
+                    importing || collectionsImporting || exporting !== null
+                  }
                   onClick={() => void handleDownloadCsv("all")}
                 >
                   {exporting === "all" ? (

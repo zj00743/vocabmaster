@@ -281,3 +281,50 @@ export async function createTag(name: string): Promise<Tag> {
   if (error) throw new Error(error.message);
   return data;
 }
+
+/** Resolve tag names to IDs, creating any tags that do not exist yet. */
+export async function resolveTagIdsByNames(
+  names: string[]
+): Promise<{ ids: string[]; created: number }> {
+  const unique = [
+    ...new Map(
+      names.map((n) => n.trim()).filter(Boolean).map((n) => [n.toLowerCase(), n])
+    ).values(),
+  ];
+  if (unique.length === 0) return { ids: [], created: 0 };
+
+  const allTags = await fetchAllTags();
+  const byLower = new Map(allTags.map((t) => [t.name.toLowerCase(), t]));
+  const ids: string[] = [];
+  let created = 0;
+
+  for (const name of unique) {
+    const existing = byLower.get(name.toLowerCase());
+    if (existing) {
+      ids.push(existing.id);
+      continue;
+    }
+    const tag = await createTag(name);
+    byLower.set(tag.name.toLowerCase(), tag);
+    ids.push(tag.id);
+    created += 1;
+  }
+
+  return { ids, created };
+}
+
+/** Add tags to a word without removing existing tag links. */
+export async function mergeWordTags(
+  wordId: string,
+  tagIds: string[]
+): Promise<Tag[]> {
+  const unique = [...new Set(tagIds.filter(Boolean))];
+  if (unique.length > 0) {
+    const { error } = await supabase.from("word_tags").upsert(
+      unique.map((tag_id) => ({ word_id: wordId, tag_id })),
+      { onConflict: "word_id,tag_id", ignoreDuplicates: true }
+    );
+    if (error) throw new Error(error.message);
+  }
+  return getTagsForWord(wordId);
+}
