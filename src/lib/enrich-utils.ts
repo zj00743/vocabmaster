@@ -4,7 +4,8 @@ import { normalizeWord } from "@/lib/word-utils";
 /** True when the card should call POST /api/words/:id/enrich again. */
 export function needsAutoEnrich(raw: WordWithProgress): boolean {
   const w = normalizeWord(raw);
-  const def = w.definition.trim().length;
+  const defHidden = w.hide_dictionary_definition === true;
+  const def = defHidden ? 40 : w.definition.trim().length;
   const ex = w.example_sentences.length;
   const img = (w.image_url ?? "").trim().length > 0;
   const syn = w.synonyms.filter(Boolean).length;

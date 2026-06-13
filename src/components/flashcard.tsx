@@ -31,6 +31,7 @@ import {
   defaultDefinitionLang,
   flashcardFrontGlossDisplay,
   normalizeWord,
+  shouldUseDictionaryDefinitionHint,
 } from "@/lib/word-utils";
 import {
   buildVisualPrompt,
@@ -186,7 +187,10 @@ export function Flashcard({
     !!sectionEdit && sectionEdit.editingSectionId === "back_definition";
 
   useEffect(() => {
-    if (suppressDictionaryHints) return;
+    if (suppressDictionaryHints || !shouldUseDictionaryDefinitionHint(word)) {
+      setRemoteHintText(null);
+      return;
+    }
     let cancelled = false;
     const w = word.word.trim();
     if (!w) return;
@@ -203,7 +207,7 @@ export function Flashcard({
     return () => {
       cancelled = true;
     };
-  }, [word.word, suppressDictionaryHints]);
+  }, [word.word, word.hide_dictionary_definition, suppressDictionaryHints]);
 
   const [frontDefinitionLang, setFrontDefinitionLang] = useState<"en" | "zh">(
     () => defaultDefinitionLang(word)

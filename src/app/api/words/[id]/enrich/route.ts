@@ -240,6 +240,7 @@ export async function POST(
 
     const lemma = String(row.word ?? "").trim();
     const hasKey = Boolean(process.env.OPENAI_API_KEY?.trim());
+    const hideDictionaryDefinition = row.hide_dictionary_definition === true;
 
     /** Replace MW stock diagram art with generated art whenever we see it (any card). */
     const imgUrl = String(row.image_url ?? "").trim();
@@ -286,9 +287,11 @@ export async function POST(
       });
     }
 
-    let definition = dict?.definition
-      ? dict.definition
-      : String(row.definition ?? "").trim();
+    let definition = hideDictionaryDefinition
+      ? String(row.definition ?? "").trim()
+      : dict?.definition
+        ? dict.definition
+        : String(row.definition ?? "").trim();
     let ipa = dict?.ipa ? dict.ipa : String(row.ipa ?? "").trim();
     let part_of_speech = dict?.part_of_speech
       ? dict.part_of_speech
@@ -336,7 +339,7 @@ export async function POST(
       if (ai.image_prompt?.trim()) image_prompt = ai.image_prompt.trim();
       if (ai.word_family?.trim() && !word_family)
         word_family = ai.word_family.trim();
-      if (ai.definition?.trim() && definition.length < 40)
+      if (ai.definition?.trim() && definition.length < 40 && !hideDictionaryDefinition)
         definition = ai.definition.trim();
       if (ai.ipa?.trim() && !ipa) ipa = ai.ipa.trim();
       if (ai.part_of_speech?.trim() && !part_of_speech)
@@ -467,8 +470,7 @@ export async function POST(
       image_url = pollinationsImageUrl(visualPrompt, hashSeed(id));
     }
 
-    const updates = {
-      definition: definition || row.definition,
+    const updates: Record<string, unknown> = {
       ipa: ipa || row.ipa,
       part_of_speech: part_of_speech || row.part_of_speech,
       category: category || row.category,
@@ -489,6 +491,10 @@ export async function POST(
       word_family: word_family || row.word_family,
       image_url: image_url || row.image_url,
     };
+
+    if (!hideDictionaryDefinition) {
+      updates.definition = definition || row.definition;
+    }
 
     const { data: updated, error: upErr } = await supabase
       .from("words")

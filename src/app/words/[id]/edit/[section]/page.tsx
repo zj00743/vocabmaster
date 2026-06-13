@@ -21,7 +21,7 @@ import {
 } from "@/lib/word-section-save";
 import { formatWordSaveError } from "@/lib/word-entry";
 import type { WordWithProgress } from "@/lib/types";
-import { hasStoredEnglishDefinition, normalizeWord } from "@/lib/word-utils";
+import { hasStoredEnglishDefinition, normalizeWord, shouldUseDictionaryDefinitionHint } from "@/lib/word-utils";
 import {
   wordDetailHref,
   wordsListQueryFromSearchParams,
@@ -116,7 +116,8 @@ function WordSectionEditInner() {
       if (
         sectionId &&
         (sectionId === "definition-en" || sectionId === "back_definition") &&
-        !hasStoredEnglishDefinition(merged)
+        !hasStoredEnglishDefinition(merged) &&
+        shouldUseDictionaryDefinitionHint(merged)
       ) {
         try {
           const hintRes = await fetch(

@@ -14,6 +14,7 @@ import {
   definitionToEditLines,
   editLinesToDefinition,
   defaultDefinitionLang,
+  shouldUseDictionaryDefinitionHint,
 } from "@/lib/word-utils";
 import { cn } from "@/lib/utils";
 import { WordImageUrlForm } from "@/components/word-image-url-form";
@@ -707,7 +708,9 @@ export function WordDetailBody({
                   const fromDb = uniqueDefinitionBullets(
                     word.definition ?? ""
                   );
-                  const hint = dictionaryHintFallback?.trim() ?? "";
+                  const hint = shouldUseDictionaryDefinitionHint(word)
+                    ? dictionaryHintFallback?.trim() ?? ""
+                    : "";
                   const bullets =
                     fromDb.length > 0
                       ? fromDb
@@ -929,12 +932,17 @@ export function WordDetailBody({
               English explanation
             </p>
             <p className="text-muted-foreground leading-relaxed min-h-[1.25rem] font-sans text-sm">
-              {word.definition?.trim() || (
+              {word.definition?.trim() ||
+              (shouldUseDictionaryDefinitionHint(word) ? (
                 <span className="italic text-muted-foreground">
                   No English gloss yet. Review auto-enriches from Merriam-Webster
                   when possible.
                 </span>
-              )}
+              ) : (
+                <span className="italic text-muted-foreground">
+                  No English gloss.
+                </span>
+              ))}
             </p>
           </div>
 

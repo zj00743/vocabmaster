@@ -77,6 +77,13 @@ export function hasStoredEnglishDefinition(word: WordWithProgress): boolean {
   return Boolean(word.definition?.trim());
 }
 
+/** Whether live dictionary hints may fill an empty English gloss. */
+export function shouldUseDictionaryDefinitionHint(
+  word: WordWithProgress
+): boolean {
+  return word.hide_dictionary_definition !== true;
+}
+
 export function hasStoredChineseDefinition(word: WordWithProgress): boolean {
   return Boolean(word.translation_zh?.trim());
 }
@@ -87,7 +94,9 @@ export function defaultDefinitionLang(
   opts?: { dictionaryHint?: string | null }
 ): "en" | "zh" {
   const hasEn =
-    hasStoredEnglishDefinition(word) || Boolean(opts?.dictionaryHint?.trim());
+    hasStoredEnglishDefinition(word) ||
+    (shouldUseDictionaryDefinitionHint(word) &&
+      Boolean(opts?.dictionaryHint?.trim()));
   if (!hasEn && hasStoredChineseDefinition(word)) return "zh";
   return "en";
 }
@@ -156,7 +165,9 @@ export function flashcardFrontGlossDisplay(
   if (firstFromDefs) {
     return firstFromDefs;
   }
-  const dh = opts?.dictionaryHint?.trim();
+  const dh = shouldUseDictionaryDefinitionHint(word)
+    ? opts?.dictionaryHint?.trim()
+    : null;
   if (dh) {
     const fromHint = splitStoredDefinitionLines(dh)[0]?.trim();
     if (fromHint) {

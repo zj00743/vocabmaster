@@ -79,6 +79,7 @@ export async function PATCH(
       'example_sentences', 'synonyms', 'antonyms', 'collocations',
       'common_expressions',
       'mnemonic', 'is_saved', 'entry_type', 'show_image',
+      'hide_dictionary_definition',
     ];
 
     const updates: Record<string, unknown> = {};
@@ -112,6 +113,13 @@ export async function PATCH(
 
     if (!current.is_custom && 'word' in updates) {
       delete updates.word;
+    }
+
+    if ('definition' in updates) {
+      const def =
+        typeof updates.definition === 'string' ? updates.definition.trim() : '';
+      updates.definition = def;
+      updates.hide_dictionary_definition = def === '';
     }
 
     if ('entry_type' in updates) {

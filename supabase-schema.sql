@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS words (
   mnemonic TEXT,
   entry_type TEXT CHECK (entry_type IS NULL OR entry_type IN ('word', 'expression')),
   show_image BOOLEAN,
+  hide_dictionary_definition BOOLEAN NOT NULL DEFAULT false,
   is_custom BOOLEAN NOT NULL DEFAULT false,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

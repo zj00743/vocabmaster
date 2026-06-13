@@ -22,6 +22,8 @@ export interface Word {
   entry_type?: string | null;
   /** Per-card image toggle; null = use default (off for expressions). */
   show_image?: boolean | null;
+  /** When true, do not show or auto-fill dictionary English definitions. */
+  hide_dictionary_definition?: boolean;
   is_custom: boolean;
   created_at: string;
 }
