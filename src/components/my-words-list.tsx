@@ -48,8 +48,14 @@ import { type EntryTypeFilter } from "@/lib/word-entry";
 import { MyWordListCard } from "@/components/my-word-list-card";
 import type { TagWithCount } from "@/lib/tags";
 import {
+  buildWordsListQuery,
+  canonicalWordsListQueryString,
+  parseWordsListStateFromSearchParams,
   wordDetailHref,
   wordsListHref,
+  wordsListQueriesEqual,
+  wordsListQueryKey,
+  type WordsListFilterState,
 } from "@/lib/words-list-url";
 
 export function MyWordsList({
@@ -81,11 +87,18 @@ export function MyWordsList({
   const [dateAddedFilter, setDateAddedFilter] =
     useState<DateAddedFilter>("all");
   const [tagFilter, setTagFilter] = useState<string>(browseTag ?? "all");
-  const [sortBy, setSortBy] = useState<WordSort>("added");
+  const [sortBy, setSortBy] = useState<WordSort>(
+    browseCorpusByTag ? "frequency" : "added"
+  );
 
-  useEffect(() => {
-    setSortBy(browseCorpusByTag ? "frequency" : "added");
-  }, [browseCorpusByTag]);
+  const defaultSort: WordSort = browseCorpusByTag ? "frequency" : "added";
+  const syncedQueryRef = useRef<string | null>(null);
+  const isHydratingRef = useRef(false);
+  const pendingHydratePageRef = useRef<number | null>(null);
+  const pendingHydrateStateRef = useRef<WordsListFilterState | null>(null);
+  const skipPageFetchRef = useRef(false);
+  const skipFilterFetchAfterHydrateRef = useRef(false);
+  const fetchGenRef = useRef(0);
   const [tags, setTags] = useState<TagWithCount[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -113,31 +126,39 @@ export function MyWordsList({
   const [deleting, setDeleting] = useState(false);
 
   const fetchWords = useCallback(
-    async (pageNum: number) => {
+    async (pageNum: number, overrides?: WordsListFilterState) => {
       const gen = ++fetchGenRef.current;
       setLoading(true);
+      const effectiveSearch = overrides?.search ?? search;
+      const effectiveStatus = overrides?.statusFilter ?? statusFilter;
+      const effectiveEntryType = overrides?.entryTypeFilter ?? entryTypeFilter;
+      const effectiveFrequency = overrides?.frequencyFilter ?? frequencyFilter;
+      const effectiveDateAdded = overrides?.dateAddedFilter ?? dateAddedFilter;
+      const effectiveTag = overrides?.tagFilter ?? tagFilter;
+      const effectiveSort = overrides?.sortBy ?? sortBy;
+      const expressionsOnlyFetch = effectiveEntryType === "expression";
       try {
         const params = new URLSearchParams({
           page: String(pageNum),
           limit: String(limit),
         });
-        if (search) params.set("q", search);
-        if (statusFilter !== "all") params.set("status", statusFilter);
-        if (entryTypeFilter !== "all") {
-          params.set("entry_type", entryTypeFilter);
+        if (effectiveSearch) params.set("q", effectiveSearch);
+        if (effectiveStatus !== "all") params.set("status", effectiveStatus);
+        if (effectiveEntryType !== "all") {
+          params.set("entry_type", effectiveEntryType);
         }
-        if (!expressionsOnly && frequencyFilter !== "all") {
-          params.set("frequency", frequencyFilter);
+        if (!expressionsOnlyFetch && effectiveFrequency !== "all") {
+          params.set("frequency", effectiveFrequency);
         }
-        const activeTag = browseTag ?? tagFilter;
+        const activeTag = browseTag ?? effectiveTag;
         if (activeTag && activeTag !== "all") {
           params.set("tag_id", activeTag);
         }
-        params.set("sort", sortBy);
+        params.set("sort", effectiveSort);
         if (!browseCorpusByTag) {
           params.set("in_my_words", "1");
-          if (dateAddedFilter !== "all") {
-            params.set("date_added", dateAddedFilter);
+          if (effectiveDateAdded !== "all") {
+            params.set("date_added", effectiveDateAdded);
           }
         }
         const res = await fetch(`/api/words?${params}`);
@@ -181,9 +202,35 @@ export function MyWordsList({
     ]
   );
 
+  const listQueryFromUrl = useMemo(
+    () => wordsListQueryKey(searchParams),
+    [searchParams]
+  );
+
   useEffect(() => {
-    if (browseTag) setTagFilter(browseTag);
-  }, [browseTag]);
+    if (syncedQueryRef.current === listQueryFromUrl) return;
+    syncedQueryRef.current = listQueryFromUrl;
+
+    const parsed = parseWordsListStateFromSearchParams(
+      new URLSearchParams(listQueryFromUrl),
+      defaultSort
+    );
+    isHydratingRef.current = true;
+    pendingHydratePageRef.current = parsed.page;
+    pendingHydrateStateRef.current = parsed;
+    setSearch(parsed.search);
+    setStatusFilter(parsed.statusFilter);
+    setEntryTypeFilter(parsed.entryTypeFilter);
+    setFrequencyFilter(parsed.frequencyFilter);
+    setDateAddedFilter(parsed.dateAddedFilter);
+    setTagFilter(parsed.tagFilter);
+    setSortBy(parsed.sortBy);
+    setSelectedIds(new Set());
+    skipPageFetchRef.current = true;
+    setPage(parsed.page);
+    skipFilterFetchAfterHydrateRef.current = false;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only re-hydrate when URL list query changes
+  }, [listQueryFromUrl, defaultSort]);
 
   useEffect(() => {
     if (browseCorpusByTag) return;
@@ -198,10 +245,22 @@ export function MyWordsList({
     loadTags();
   }, [browseCorpusByTag]);
 
-  const skipPageFetchRef = useRef(false);
-  const fetchGenRef = useRef(0);
-
   useEffect(() => {
+    if (isHydratingRef.current) {
+      isHydratingRef.current = false;
+      const hydratePage = pendingHydratePageRef.current ?? page;
+      const hydrateState = pendingHydrateStateRef.current ?? undefined;
+      pendingHydratePageRef.current = null;
+      pendingHydrateStateRef.current = null;
+      skipPageFetchRef.current = true;
+      skipFilterFetchAfterHydrateRef.current = true;
+      void fetchWords(hydratePage, hydrateState);
+      return;
+    }
+    if (skipFilterFetchAfterHydrateRef.current) {
+      skipFilterFetchAfterHydrateRef.current = false;
+      return;
+    }
     skipPageFetchRef.current = true;
     setPage(1);
     setSelectedIds(new Set());
@@ -245,58 +304,73 @@ export function MyWordsList({
     filteredTotal === 0 ? 0 : (page - 1) * limit + 1;
   const pageRangeEnd = Math.min(page * limit, filteredTotal);
 
-  const filterParamsForBulk = useMemo(() => {
-    const p = new URLSearchParams();
-    if (search) p.set("q", search);
-    if (statusFilter !== "all") p.set("status", statusFilter);
-    if (entryTypeFilter !== "all") p.set("entry_type", entryTypeFilter);
-    if (!expressionsOnly && frequencyFilter !== "all") {
-      p.set("frequency", frequencyFilter);
-    }
-    const activeTag = browseTag ?? tagFilter;
-    if (activeTag && activeTag !== "all") {
-      p.set("tag_id", activeTag);
-    }
-    if (!browseCorpusByTag) {
-      p.set("in_my_words", "1");
-      if (dateAddedFilter !== "all") p.set("date_added", dateAddedFilter);
-    }
-    return p;
-  }, [
-    search,
-    statusFilter,
-    entryTypeFilter,
-    frequencyFilter,
-    dateAddedFilter,
-    expressionsOnly,
-    tagFilter,
-    browseTag,
-    browseCorpusByTag,
-  ]);
+  const listContextQuery = useMemo(
+    () =>
+      buildWordsListQuery({
+        search,
+        statusFilter,
+        entryTypeFilter,
+        frequencyFilter,
+        dateAddedFilter,
+        tagFilter,
+        browseTag,
+        sortBy,
+        page,
+        browseCorpusByTag,
+        expressionsOnly,
+      }),
+    [
+      search,
+      statusFilter,
+      entryTypeFilter,
+      frequencyFilter,
+      dateAddedFilter,
+      tagFilter,
+      browseTag,
+      sortBy,
+      page,
+      browseCorpusByTag,
+      expressionsOnly,
+    ]
+  );
 
-  const listContextQuery = useMemo(() => {
-    const p = new URLSearchParams(filterParamsForBulk);
-    if (page > 1) p.set("page", String(page));
+  const filterParamsForBulk = useMemo(() => {
+    const p = new URLSearchParams(listContextQuery);
+    p.delete("page");
+    p.delete("sort");
     return p;
-  }, [filterParamsForBulk, page]);
+  }, [listContextQuery]);
 
   const listBackHref = useMemo(
     () => wordsListHref(listContextQuery),
     [listContextQuery]
   );
 
-  const handleTagFilterChange = useCallback(
-    (value: string) => {
-      setTagFilter(value);
-      if (inMyWordsFromUrl) {
-        const p = new URLSearchParams();
-        p.set("in_my_words", "1");
-        if (value !== "all") p.set("tag_id", value);
-        router.replace(wordsListHref(p));
-      }
-    },
-    [inMyWordsFromUrl, router]
-  );
+  useEffect(() => {
+    const canonicalListQuery = canonicalWordsListQueryString(listContextQuery);
+
+    if (!selectedWordId) {
+      syncedQueryRef.current = listQueryFromUrl;
+      return;
+    }
+
+    if (wordsListQueriesEqual(listContextQuery, searchParams)) {
+      syncedQueryRef.current = canonicalListQuery;
+      return;
+    }
+    syncedQueryRef.current = canonicalListQuery;
+
+    const tab = searchParams.get("tab");
+    const editorTab =
+      tab === "back" || tab === "memory-curve" ? tab : undefined;
+    router.replace(
+      wordDetailHref(
+        selectedWordId,
+        listContextQuery,
+        editorTab ? { tab: editorTab } : undefined
+      )
+    );
+  }, [listContextQuery, listQueryFromUrl, selectedWordId, router, searchParams]);
 
   const enterSelectMode = useCallback(() => {
     setSelectMode(true);
@@ -547,7 +621,7 @@ export function MyWordsList({
           dateAddedFilter={dateAddedFilter}
           onDateAddedFilterChange={setDateAddedFilter}
           tagFilter={tagFilter}
-          onTagFilterChange={handleTagFilterChange}
+          onTagFilterChange={setTagFilter}
           sortBy={sortBy}
           onSortByChange={setSortBy}
           defaultSort={browseCorpusByTag ? "frequency" : "added"}
