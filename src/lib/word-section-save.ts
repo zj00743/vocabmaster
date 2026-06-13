@@ -3,7 +3,7 @@ import type { WordWithProgress } from "@/lib/types";
 import { definitionToEditLines, editLinesToDefinition } from "@/lib/word-utils";
 import {
   type EntryType,
-  lemmasEqualForStorage,
+  lemmaUnchangedForUpdate,
   normalizeLemmaForStorage,
   resolveEntryType,
   resolveShowImage,
@@ -86,8 +86,9 @@ export function buildSectionPatchPayload(
       };
       if (word.is_custom) {
         const lemma = values.lemma.trim() || word.word;
-        // Only touch `word` when the lemma text changed (avoids needless writes).
-        if (!lemmasEqualForStorage(lemma, word.word ?? "")) {
+        // Only touch `word` when the lemma text meaningfully changed (ignore
+        // case-only diffs from mobile autocorrect on tag/type-only saves).
+        if (!lemmaUnchangedForUpdate(lemma, word.word ?? "")) {
           payload.word = normalizeLemmaForStorage(lemma);
         }
       }

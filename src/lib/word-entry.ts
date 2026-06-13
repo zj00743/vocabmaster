@@ -117,12 +117,31 @@ export function entryTypeLabel(type: EntryType): string {
 
 /** Normalize lemma text for storage (trim only; casing is preserved). */
 export function normalizeLemmaForStorage(lemma: string): string {
-  return lemma.trim();
+  return lemma
+    .trim()
+    .normalize("NFC")
+    .replace(/[\u2018\u2019\u201A\u201B]/g, "'")
+    .replace(/[\u201C\u201D\u201E\u201F]/g, '"');
 }
 
 /** True when two lemmas would persist as the same `words.word` value. */
 export function lemmasEqualForStorage(a: string, b: string): boolean {
   return normalizeLemmaForStorage(a) === normalizeLemmaForStorage(b);
+}
+
+/** True when the only difference is letter casing (common with mobile autocorrect). */
+export function isCaseOnlyLemmaChange(a: string, b: string): boolean {
+  const left = normalizeLemmaForStorage(a);
+  const right = normalizeLemmaForStorage(b);
+  return left !== right && left.toLowerCase() === right.toLowerCase();
+}
+
+/** Whether a PATCH should omit `word` because the lemma was not intentionally changed. */
+export function lemmaUnchangedForUpdate(next: string, stored: string): boolean {
+  return (
+    lemmasEqualForStorage(next, stored) ||
+    isCaseOnlyLemmaChange(next, stored)
+  );
 }
 
 /** Client-side guard before PATCH/POST. */
@@ -148,6 +167,9 @@ export function formatWordSaveError(
     const label = lemma?.trim() || "This text";
     const conflict = conflictingLemma?.trim();
     if (conflict && !lemmasEqualForStorage(label, conflict)) {
+      if (label.toLowerCase() === conflict.toLowerCase()) {
+        return `${label} matches an existing entry that differs only in capitalization ("${conflict}"). Search for "${conflict}" and use that card, or delete the duplicate.`;
+      }
       return `${label} matches an existing dictionary entry stored as "${conflict}". Search for "${conflict}" and use that card instead.`;
     }
     return `${label} is already in the dictionary as another card. Search for it and use that entry instead.`;

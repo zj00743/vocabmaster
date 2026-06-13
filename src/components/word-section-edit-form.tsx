@@ -71,6 +71,9 @@ export function WordSectionEditForm({
                 <Input
                   value={values.lemma}
                   onChange={(e) => onChange({ lemma: e.target.value })}
+                  autoCapitalize="off"
+                  autoCorrect="off"
+                  spellCheck={false}
                   className="text-2xl font-bold tracking-tight h-auto py-2"
                 />
               </label>

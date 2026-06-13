@@ -4,11 +4,25 @@ import { normalizeImageUrlForStorage } from '@/lib/image-url';
 import { getTagsForWord } from '@/lib/tag-db';
 import {
   formatWordSaveError,
+  lemmaUnchangedForUpdate,
   normalizeEntryTypeForStorage,
   normalizeLemmaForStorage,
   validateEntryTypeLemma,
   type EntryType,
 } from '@/lib/word-entry';
+
+async function findConflictingWordRow(
+  lemma: string,
+  excludeId: string
+): Promise<{ id: string; word: string } | undefined> {
+  const { data, error } = await supabase
+    .from('words')
+    .select('id, word')
+    .eq('word', lemma);
+
+  if (error) throw error;
+  return (data ?? []).find((row) => row.id !== excludeId);
+}
 
 export async function GET(
   _request: NextRequest,
@@ -83,13 +97,6 @@ export async function PATCH(
       updates.image_url = img.value;
     }
 
-    if (Object.keys(updates).length === 0) {
-      return NextResponse.json(
-        { error: 'No valid fields to update' },
-        { status: 400 }
-      );
-    }
-
     const { data: current, error: fetchError } = await supabase
       .from('words')
       .select('word, is_custom, entry_type')
@@ -101,6 +108,10 @@ export async function PATCH(
         return NextResponse.json({ error: 'Word not found' }, { status: 404 });
       }
       return NextResponse.json({ error: fetchError.message }, { status: 500 });
+    }
+
+    if (!current.is_custom && 'word' in updates) {
+      delete updates.word;
     }
 
     if ('entry_type' in updates) {
@@ -126,29 +137,29 @@ export async function PATCH(
       }
       updates.word = normalized;
 
-      const { data: duplicates, error: dupError } = await supabase
-        .from('words')
-        .select('id, word')
-        .eq('word', normalized)
-        .neq('id', id)
-        .limit(1);
-
-      if (dupError) {
-        return NextResponse.json({ error: dupError.message }, { status: 500 });
-      }
-
-      const duplicate = duplicates?.[0];
-      if (duplicate) {
-        return NextResponse.json(
-          {
-            error: formatWordSaveError(
-              'duplicate key value violates unique constraint',
-              normalized,
-              duplicate.word
-            ),
-          },
-          { status: 409 }
-        );
+      // Lemma unchanged (incl. case-only autocorrect) — skip uniqueness check.
+      if (lemmaUnchangedForUpdate(normalized, String(current.word ?? ''))) {
+        delete updates.word;
+      } else {
+        try {
+          const duplicate = await findConflictingWordRow(normalized, id);
+          if (duplicate) {
+            return NextResponse.json(
+              {
+                error: formatWordSaveError(
+                  'duplicate key value violates unique constraint',
+                  normalized,
+                  duplicate.word
+                ),
+              },
+              { status: 409 }
+            );
+          }
+        } catch (dupError) {
+          const msg =
+            dupError instanceof Error ? dupError.message : 'Duplicate check failed';
+          return NextResponse.json({ error: msg }, { status: 500 });
+        }
       }
     } else if ('entry_type' in updates && updates.entry_type === 'word') {
       const validationError = validateEntryTypeLemma(
@@ -158,6 +169,13 @@ export async function PATCH(
       if (validationError) {
         return NextResponse.json({ error: validationError }, { status: 400 });
       }
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return NextResponse.json(
+        { error: 'No valid fields to update' },
+        { status: 400 }
+      );
     }
 
     const { data, error } = await supabase
@@ -172,13 +190,31 @@ export async function PATCH(
         return NextResponse.json({ error: 'Word not found' }, { status: 404 });
       }
       const msg = error.message ?? 'Update failed';
-      const status = msg.toLowerCase().includes('duplicate') ? 409 : 500;
+      const isDuplicate =
+        msg.toLowerCase().includes('duplicate') ||
+        msg.toLowerCase().includes('unique');
+      if (isDuplicate && typeof updates.word !== 'string') {
+        return NextResponse.json({ error: 'Update failed' }, { status: 500 });
+      }
+      const status = isDuplicate ? 409 : 500;
+      let conflictingLemma: string | undefined;
+      if (isDuplicate && typeof updates.word === 'string') {
+        try {
+          const conflictRow = await findConflictingWordRow(
+            String(updates.word),
+            id
+          );
+          conflictingLemma = conflictRow?.word;
+        } catch {
+          conflictingLemma = undefined;
+        }
+      }
       return NextResponse.json(
         {
           error: formatWordSaveError(
             msg,
             typeof updates.word === 'string' ? updates.word : current.word,
-            current.word
+            conflictingLemma
           ),
         },
         { status }

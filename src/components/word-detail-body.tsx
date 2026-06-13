@@ -393,6 +393,9 @@ export function WordDetailBody({
                         onChange={(e) =>
                           sect.onSectionFieldChange("lemma", e.target.value)
                         }
+                        autoCapitalize="off"
+                        autoCorrect="off"
+                        spellCheck={false}
                         className="text-3xl sm:text-[2rem] font-bold tracking-tight h-auto py-2 font-sans"
                       />
                     </label>
