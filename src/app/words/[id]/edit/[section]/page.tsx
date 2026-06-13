@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Loader2 } from "lucide-react";
@@ -86,9 +86,11 @@ function WordSectionEditInner() {
   const [saving, setSaving] = useState(false);
   const [word, setWord] = useState<WordWithProgress | null>(null);
   const [values, setValues] = useState<SectionFieldValues | null>(null);
+  const lemmaEditedRef = useRef(false);
 
   const loadWord = useCallback(async () => {
     if (!id || !sectionId) return;
+    lemmaEditedRef.current = false;
     setLoading(true);
     setNotFound(false);
     try {
@@ -162,6 +164,7 @@ function WordSectionEditInner() {
   }, []);
 
   const onChange = useCallback((patch: Partial<SectionFieldValues>) => {
+    if ("lemma" in patch) lemmaEditedRef.current = true;
     setValues((prev) => (prev ? { ...prev, ...patch } : prev));
   }, []);
 
@@ -174,7 +177,9 @@ function WordSectionEditInner() {
     }
     setSaving(true);
     try {
-      const payload = buildSectionPatchPayload(sectionId, word, values);
+      const payload = buildSectionPatchPayload(sectionId, word, values, {
+        lemmaEdited: lemmaEditedRef.current,
+      });
       const res = await fetch(`/api/words/${word.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },

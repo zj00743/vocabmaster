@@ -4,7 +4,7 @@ import { normalizeImageUrlForStorage } from '@/lib/image-url';
 import { getTagsForWord } from '@/lib/tag-db';
 import {
   formatWordSaveError,
-  lemmaUnchangedForUpdate,
+  lemmasEqualForStorage,
   normalizeEntryTypeForStorage,
   normalizeLemmaForStorage,
   validateEntryTypeLemma,
@@ -137,8 +137,8 @@ export async function PATCH(
       }
       updates.word = normalized;
 
-      // Lemma unchanged (incl. case-only autocorrect) — skip uniqueness check.
-      if (lemmaUnchangedForUpdate(normalized, String(current.word ?? ''))) {
+      // Exact match only — client omits case-only autocorrect; intentional renames include `word`.
+      if (lemmasEqualForStorage(normalized, String(current.word ?? ''))) {
         delete updates.word;
       } else {
         try {

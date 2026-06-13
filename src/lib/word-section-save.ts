@@ -3,12 +3,18 @@ import type { WordWithProgress } from "@/lib/types";
 import { definitionToEditLines, editLinesToDefinition } from "@/lib/word-utils";
 import {
   type EntryType,
+  lemmasEqualForStorage,
   lemmaUnchangedForUpdate,
   normalizeLemmaForStorage,
   resolveEntryType,
   resolveShowImage,
   validateEntryTypeLemma,
 } from "@/lib/word-entry";
+
+export type BuildSectionPatchOptions = {
+  /** Set when the user edited the lemma field (allows intentional case changes). */
+  lemmaEdited?: boolean;
+};
 
 export type SectionFieldValues = {
   lemma: string;
@@ -74,7 +80,8 @@ export function validateSectionFields(
 export function buildSectionPatchPayload(
   sectionId: WordEditSectionSlug,
   word: WordWithProgress,
-  values: SectionFieldValues
+  values: SectionFieldValues,
+  options?: BuildSectionPatchOptions
 ): Record<string, unknown> {
   switch (sectionId) {
     case "back_header": {
@@ -86,9 +93,11 @@ export function buildSectionPatchPayload(
       };
       if (word.is_custom) {
         const lemma = values.lemma.trim() || word.word;
-        // Only touch `word` when the lemma text meaningfully changed (ignore
-        // case-only diffs from mobile autocorrect on tag/type-only saves).
-        if (!lemmaUnchangedForUpdate(lemma, word.word ?? "")) {
+        const stored = word.word ?? "";
+        const includeLemma = options?.lemmaEdited
+          ? !lemmasEqualForStorage(lemma, stored)
+          : !lemmaUnchangedForUpdate(lemma, stored);
+        if (includeLemma) {
           payload.word = normalizeLemmaForStorage(lemma);
         }
       }
