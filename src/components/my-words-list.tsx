@@ -47,6 +47,10 @@ import {
 import { type EntryTypeFilter } from "@/lib/word-entry";
 import { MyWordListCard } from "@/components/my-word-list-card";
 import type { TagWithCount } from "@/lib/tags";
+import {
+  wordDetailHref,
+  wordsListHref,
+} from "@/lib/words-list-url";
 
 export function MyWordsList({
   variant = "page",
@@ -270,6 +274,30 @@ export function MyWordsList({
     browseCorpusByTag,
   ]);
 
+  const listContextQuery = useMemo(() => {
+    const p = new URLSearchParams(filterParamsForBulk);
+    if (page > 1) p.set("page", String(page));
+    return p;
+  }, [filterParamsForBulk, page]);
+
+  const listBackHref = useMemo(
+    () => wordsListHref(listContextQuery),
+    [listContextQuery]
+  );
+
+  const handleTagFilterChange = useCallback(
+    (value: string) => {
+      setTagFilter(value);
+      if (inMyWordsFromUrl) {
+        const p = new URLSearchParams();
+        p.set("in_my_words", "1");
+        if (value !== "all") p.set("tag_id", value);
+        router.replace(wordsListHref(p));
+      }
+    },
+    [inMyWordsFromUrl, router]
+  );
+
   const enterSelectMode = useCallback(() => {
     setSelectMode(true);
     setSelectedIds(new Set());
@@ -379,7 +407,7 @@ export function MyWordsList({
           }
           invalidateClientReviewQueue();
           toast.success("Word removed");
-          if (w.id === selectedWordId) router.push("/words");
+          if (w.id === selectedWordId) router.push(listBackHref);
           return true;
         }
         toast.error("Failed to remove word");
@@ -409,7 +437,7 @@ export function MyWordsList({
             { duration: 8000 }
           );
         } else toast.success("Removed from your words");
-        if (w.id === selectedWordId) router.push("/words");
+        if (w.id === selectedWordId) router.push(listBackHref);
         return true;
       }
       toast.error("Failed to remove from collection");
@@ -463,13 +491,13 @@ export function MyWordsList({
                 isSidebar ? "text-lg" : "text-2xl"
               )}
             >
-              {activeTagLabel ? `Tag: ${activeTagLabel}` : "My collections"}
+              {browseCorpusByTag && activeTagLabel
+                ? `Tag: ${activeTagLabel}`
+                : "My collections"}
             </h1>
             {!browseCorpusByTag && (
               <p className="text-xs text-muted-foreground mt-1">
-                {activeTagLabel
-                  ? `Saved items tagged with “${activeTagLabel}”.`
-                  : "Words you have added to your book (not the full dictionary)."}
+                Words you have added to your book (not the full dictionary).
               </p>
             )}
             {browseCorpusByTag && (
@@ -519,18 +547,16 @@ export function MyWordsList({
           dateAddedFilter={dateAddedFilter}
           onDateAddedFilterChange={setDateAddedFilter}
           tagFilter={tagFilter}
-          onTagFilterChange={setTagFilter}
+          onTagFilterChange={handleTagFilterChange}
           sortBy={sortBy}
           onSortByChange={setSortBy}
           defaultSort={browseCorpusByTag ? "frequency" : "added"}
           tags={tags}
-          tagLocked={!!browseTag}
+          tagLocked={browseCorpusByTag}
           searchPlaceholder={
             browseCorpusByTag
               ? "Search in this tag…"
-              : activeTagLabel
-                ? "Search your saved words…"
-                : "Search your words…"
+              : "Search your words…"
           }
         />
 
@@ -557,7 +583,7 @@ export function MyWordsList({
                 onClick={
                   selectMode && canBulkSelect
                     ? undefined
-                    : () => router.push(`/words/${word.id}`)
+                    : () => router.push(wordDetailHref(word.id, listContextQuery))
                 }
                 selectable={selectMode && canBulkSelect}
                 selected={selectedIds.has(word.id)}

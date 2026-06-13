@@ -100,7 +100,7 @@ export function MyWordsFilters({
     entryTypeFilter !== "all" ||
     (!hideFrequencyFilter && frequencyFilter !== "all") ||
     (showDateAddedFilter && dateAddedFilter !== "all") ||
-    (tagFilter !== "all" && !tagLocked);
+    tagFilter !== "all";
 
   const hasNonDefaultSort = sortBy !== defaultSort;
 
@@ -109,7 +109,7 @@ export function MyWordsFilters({
     onEntryTypeFilterChange("all");
     onFrequencyFilterChange("all");
     onDateAddedFilterChange?.("all");
-    if (!tagLocked) onTagFilterChange("all");
+    onTagFilterChange("all");
   };
 
   const toggleFilters = () => {
@@ -346,7 +346,7 @@ export function MyWordsFilters({
               onClear={() => onDateAddedFilterChange?.("all")}
             />
           )}
-          {tagFilter !== "all" && !tagLocked && activeTag && (
+          {tagFilter !== "all" && activeTag && (
             <FilterChip
               label={activeTag.name}
               onClear={() => onTagFilterChange("all")}

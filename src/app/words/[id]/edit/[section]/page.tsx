@@ -2,7 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -22,13 +22,17 @@ import {
 import { formatWordSaveError } from "@/lib/word-entry";
 import type { WordWithProgress } from "@/lib/types";
 import { hasStoredEnglishDefinition, normalizeWord } from "@/lib/word-utils";
+import {
+  wordDetailHref,
+  wordsListQueryFromSearchParams,
+} from "@/lib/words-list-url";
 
 function EditPageFooter({
-  wordId,
+  backHref,
   saving,
   onSave,
 }: {
-  wordId: string;
+  backHref: string;
   saving: boolean;
   onSave: () => void;
 }) {
@@ -36,7 +40,7 @@ function EditPageFooter({
     <footer className="shrink-0 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:relative">
       <div className="mx-auto flex w-full max-w-3xl gap-2">
         <Link
-          href={`/words/${wordId}?tab=back`}
+          href={backHref}
           className="flex-1 inline-flex h-10 items-center justify-center rounded-md border border-input bg-background px-4 text-sm font-medium font-sans shadow-xs hover:bg-muted/60"
           aria-disabled={saving}
           tabIndex={saving ? -1 : undefined}
@@ -69,10 +73,13 @@ function EditPageFooter({
 function WordSectionEditInner() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const id = typeof params?.id === "string" ? params.id : "";
   const sectionParam =
     typeof params?.section === "string" ? params.section : "";
   const sectionId = parseWordEditSectionSlug(sectionParam);
+  const listQuery = wordsListQueryFromSearchParams(searchParams);
+  const detailBackHref = wordDetailHref(id, listQuery, { tab: "back" });
 
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -200,7 +207,7 @@ function WordSectionEditInner() {
         }
       }
       toast.success("Saved");
-      router.push(`/words/${word.id}?tab=back`);
+      router.push(detailBackHref);
       router.refresh();
     } catch {
       toast.error("Save failed");
@@ -225,7 +232,7 @@ function WordSectionEditInner() {
       <div className="mx-auto flex w-full max-w-3xl min-h-0 flex-1 flex-col overflow-hidden md:max-w-none md:px-8">
         <header className="shrink-0 border-b bg-background px-4 pb-3 pt-4 md:px-0">
           <div className="flex min-w-0 items-center gap-2">
-            <Link href={`/words/${id}?tab=back`} className="shrink-0">
+            <Link href={detailBackHref} className="shrink-0">
               <Button
                 variant="ghost"
                 size="icon"
@@ -270,7 +277,7 @@ function WordSectionEditInner() {
 
         {showEditor && (
           <EditPageFooter
-            wordId={id}
+            backHref={detailBackHref}
             saving={saving}
             onSave={() => void handleSave()}
           />

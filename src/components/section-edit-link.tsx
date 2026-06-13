@@ -1,10 +1,13 @@
+"use client";
+
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Pencil } from "lucide-react";
 import type { WordCardEditSectionId } from "@/lib/word-card-edit-types";
 import {
-  definitionEditPath,
-  wordSectionEditPath,
-} from "@/lib/word-section-meta";
+  wordEditHref,
+  wordsListQueryFromSearchParams,
+} from "@/lib/words-list-url";
 
 export function SectionEditLink({
   wordId,
@@ -16,10 +19,16 @@ export function SectionEditLink({
   /** When set, opens EN or 中文 definition editor (matches active Definition tab). */
   definitionLang?: "en" | "zh";
 }) {
-  const href = definitionLang
-    ? definitionEditPath(wordId, definitionLang)
-    : sectionId
-      ? wordSectionEditPath(wordId, sectionId)
+  const searchParams = useSearchParams();
+  const listQuery = wordsListQueryFromSearchParams(searchParams);
+  const section = definitionLang
+    ? definitionLang === "en"
+      ? "definition-en"
+      : "definition-zh"
+    : sectionId;
+  const href =
+    section != null
+      ? wordEditHref(wordId, section, listQuery)
       : "#";
   const ariaLabel = definitionLang
     ? definitionLang === "en"

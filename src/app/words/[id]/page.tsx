@@ -17,6 +17,10 @@ import { Flashcard } from "@/components/flashcard";
 import { FsrsForgettingCurvePanel } from "@/components/fsrs-forgetting-curve";
 import type { WordWithProgress } from "@/lib/types";
 import { normalizeWord } from "@/lib/word-utils";
+import {
+  wordsListHref,
+  wordsListQueryFromSearchParams,
+} from "@/lib/words-list-url";
 
 type EditorTab = "front" | "back" | "memory-curve";
 
@@ -79,6 +83,10 @@ function WordEditorInner() {
 
   const browseEdit = id ? { wordId: id } : undefined;
 
+  const listBackHref = wordsListHref(
+    wordsListQueryFromSearchParams(searchParams)
+  );
+
   if (!id) {
     return (
       <div className="mx-auto max-w-3xl px-4 py-12 text-muted-foreground">
@@ -92,7 +100,7 @@ function WordEditorInner() {
       <div className="mx-auto flex w-full max-w-3xl min-h-0 flex-1 flex-col overflow-hidden md:max-w-none md:px-8">
         <header className="shrink-0 border-b bg-background px-4 pb-3 pt-4 md:px-0">
           <div className="flex min-w-0 items-center gap-2">
-            <Link href="/words" className="shrink-0 md:hidden">
+            <Link href={listBackHref} className="shrink-0 md:hidden">
               <Button
                 variant="ghost"
                 size="icon"
@@ -107,7 +115,7 @@ function WordEditorInner() {
                 {word.word}
               </h1>
             )}
-            <Link href="/words" className="hidden md:inline-flex shrink-0">
+            <Link href={listBackHref} className="hidden md:inline-flex shrink-0">
               <Button
                 variant="ghost"
                 size="icon"
@@ -155,7 +163,7 @@ function WordEditorInner() {
             {!loading && notFound && (
               <div className="mx-4 my-8 rounded-xl border bg-muted/30 px-6 py-12 text-center space-y-3 md:mx-0">
                 <p className="text-muted-foreground">Word not found.</p>
-                <Link href="/words">
+                <Link href={listBackHref}>
                   <Button variant="outline">Back to My Words</Button>
                 </Link>
               </div>

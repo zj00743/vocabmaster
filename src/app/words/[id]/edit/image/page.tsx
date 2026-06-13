@@ -8,7 +8,7 @@ import {
   useState,
 } from "react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -19,12 +19,21 @@ import {
 } from "@/components/word-image-url-form";
 import type { WordWithProgress } from "@/lib/types";
 import { normalizeWord } from "@/lib/word-utils";
+import {
+  wordDetailHref,
+  wordsListQueryFromSearchParams,
+} from "@/lib/words-list-url";
 
 function WordImageEditInner() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const id = typeof params?.id === "string" ? params.id : "";
-  const returnHref = `/words/${id}?tab=front`;
+  const returnHref = wordDetailHref(
+    id,
+    wordsListQueryFromSearchParams(searchParams),
+    { tab: "front" }
+  );
 
   const formRef = useRef<WordImageUrlFormHandle>(null);
   const [loading, setLoading] = useState(true);
