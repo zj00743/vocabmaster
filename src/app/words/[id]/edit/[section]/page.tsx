@@ -198,8 +198,11 @@ function WordSectionEditInner() {
         );
         return;
       }
+      const saved = (await res.json()) as { id?: string; merged_from_id?: string };
+      const savedId =
+        typeof saved.id === "string" && saved.id ? saved.id : word.id;
       if (sectionId === "back_header") {
-        const tagRes = await fetch(`/api/words/${word.id}/tags`, {
+        const tagRes = await fetch(`/api/words/${savedId}/tags`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ tag_ids: values.tagIds }),
@@ -212,8 +215,10 @@ function WordSectionEditInner() {
           return;
         }
       }
-      toast.success("Saved");
-      router.push(detailBackHref);
+      toast.success(
+        saved.merged_from_id ? "Saved and linked to existing entry" : "Saved"
+      );
+      router.push(wordDetailHref(savedId, listQuery, { tab: "back" }));
       router.refresh();
     } catch {
       toast.error("Save failed");

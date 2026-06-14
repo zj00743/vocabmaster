@@ -177,6 +177,25 @@ export function formatWordSaveError(
   return message;
 }
 
+export function formatRenameConflictError(
+  lemma: string,
+  conflict: {
+    word: string;
+    is_custom: boolean;
+    entry_type: string | null;
+  },
+  inMyCollections: boolean
+): string {
+  const label = lemma.trim() || "This text";
+  if (inMyCollections) {
+    return `"${label}" is already in My collections. Open that card instead, or choose a different title.`;
+  }
+  if (!conflict.is_custom) {
+    return `"${label}" already exists in the vocabulary bank. Your card was not renamed — search for "${conflict.word}" and add it to My collections, or keep a longer expression title.`;
+  }
+  return `"${label}" is already used by another card. Search for "${conflict.word}" and use that entry, or choose a different title.`;
+}
+
 /** CoCA import rows have a numeric rank; custom / manual entries do not. */
 export function isInCocaBank(rank: number | null | undefined): boolean {
   return rank != null && Number.isFinite(rank);

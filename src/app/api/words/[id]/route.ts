@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { normalizeImageUrlForStorage } from '@/lib/image-url';
 import { getTagsForWord } from '@/lib/tag-db';
+import { mergeCustomIntoExistingWord } from '@/lib/merge-custom-word';
 import {
+  formatRenameConflictError,
   formatWordSaveError,
   lemmasEqualForStorage,
   normalizeEntryTypeForStorage,
@@ -14,10 +16,12 @@ import {
 async function findConflictingWordRow(
   lemma: string,
   excludeId: string
-): Promise<{ id: string; word: string } | undefined> {
+): Promise<
+  { id: string; word: string; is_custom: boolean; entry_type: string | null } | undefined
+> {
   const { data, error } = await supabase
-    .from('words')
-    .select('id, word')
+    .from("words")
+    .select('id, word, is_custom, entry_type')
     .eq('word', lemma);
 
   if (error) throw error;
@@ -152,12 +156,60 @@ export async function PATCH(
         try {
           const duplicate = await findConflictingWordRow(normalized, id);
           if (duplicate) {
+            if (current.is_custom) {
+              const mergeResult = await mergeCustomIntoExistingWord(
+                id,
+                duplicate.id,
+                { ...updates, word: normalized }
+              );
+              if (mergeResult.ok) {
+                const { data: merged, error: mergedError } = await supabase
+                  .from('words')
+                  .select(`
+                    *,
+                    progress:learning_progress(*)
+                  `)
+                  .eq('id', mergeResult.wordId)
+                  .single();
+                if (mergedError || !merged) {
+                  return NextResponse.json(
+                    { error: mergedError?.message ?? 'Merge failed' },
+                    { status: 500 }
+                  );
+                }
+                const rawProg = (
+                  merged as unknown as Record<string, unknown>
+                ).progress as unknown;
+                const progressObj = Array.isArray(rawProg)
+                  ? rawProg[0] ?? null
+                  : rawProg ?? null;
+                const tags = await getTagsForWord(mergeResult.wordId);
+                return NextResponse.json({
+                  ...merged,
+                  progress: progressObj,
+                  tags,
+                  merged_from_id: id,
+                });
+              }
+              if (mergeResult.reason === 'target_in_collection') {
+                return NextResponse.json(
+                  {
+                    error: formatRenameConflictError(
+                      normalized,
+                      duplicate,
+                      true
+                    ),
+                  },
+                  { status: 409 }
+                );
+              }
+            }
             return NextResponse.json(
               {
-                error: formatWordSaveError(
-                  'duplicate key value violates unique constraint',
+                error: formatRenameConflictError(
                   normalized,
-                  duplicate.word
+                  duplicate,
+                  false
                 ),
               },
               { status: 409 }
