@@ -7,6 +7,7 @@ export const WORD_SECTION_IDS: WordCardEditSectionId[] = [
   "back_antonyms",
   "back_collocations",
   "back_examples",
+  "back_unnatural_english",
 ];
 
 export const WORD_SECTION_LABELS: Record<WordCardEditSectionId, string> = {
@@ -16,6 +17,7 @@ export const WORD_SECTION_LABELS: Record<WordCardEditSectionId, string> = {
   back_antonyms: "Antonyms",
   back_collocations: "Collocations",
   back_examples: "Example sentences",
+  back_unnatural_english: "Unnatural English",
 };
 
 export function isWordCardEditSectionId(

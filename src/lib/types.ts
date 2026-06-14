@@ -11,6 +11,7 @@ export interface Word {
   part_of_speech: string;
   word_family: string | null;
   example_sentences: string[];
+  unnatural_english: string[];
   synonyms: string[];
   antonyms: string[];
   collocations: string[];

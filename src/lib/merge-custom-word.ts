@@ -7,6 +7,7 @@ const MERGE_CONTENT_FIELDS = [
   "ipa",
   "part_of_speech",
   "example_sentences",
+  "unnatural_english",
   "synonyms",
   "antonyms",
   "collocations",

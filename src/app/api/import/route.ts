@@ -30,6 +30,7 @@ export async function POST(request: NextRequest) {
         part_of_speech: String(w.part_of_speech || ''),
         word_family: w.word_family ? String(w.word_family) : null,
         example_sentences: Array.isArray(w.example_sentences) ? w.example_sentences : [],
+        unnatural_english: Array.isArray(w.unnatural_english) ? w.unnatural_english : [],
         synonyms: Array.isArray(w.synonyms) ? w.synonyms : [],
         antonyms: Array.isArray(w.antonyms) ? w.antonyms : [],
         collocations: Array.isArray(w.collocations) ? w.collocations : [],

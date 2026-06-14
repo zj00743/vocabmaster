@@ -80,7 +80,7 @@ export async function PATCH(
 
     const allowedFields = [
       'word', 'definition', 'translation_zh', 'ipa', 'part_of_speech',
-      'example_sentences', 'synonyms', 'antonyms', 'collocations',
+      'example_sentences', 'unnatural_english', 'synonyms', 'antonyms', 'collocations',
       'common_expressions',
       'mnemonic', 'is_saved', 'entry_type', 'show_image',
       'hide_dictionary_definition',

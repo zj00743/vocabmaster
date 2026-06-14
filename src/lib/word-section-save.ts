@@ -26,6 +26,7 @@ export type SectionFieldValues = {
   definition: string;
   translationZh: string;
   examplesText: string;
+  unnaturalEnglishText: string;
   synonymsText: string;
   antonymsText: string;
   collocationsText: string;
@@ -42,6 +43,7 @@ export function sectionFieldsFromWord(word: WordWithProgress): SectionFieldValue
     definition: definitionToEditLines(word.definition ?? ""),
     translationZh: definitionToEditLines(word.translation_zh ?? ""),
     examplesText: word.example_sentences.filter(Boolean).join("\n"),
+    unnaturalEnglishText: word.unnatural_english.filter(Boolean).join("\n"),
     synonymsText: word.synonyms.filter(Boolean).join("\n"),
     antonymsText: word.antonyms.filter(Boolean).join("\n"),
     collocationsText: word.collocations.filter(Boolean).join("\n"),
@@ -114,6 +116,8 @@ export function buildSectionPatchPayload(
       return { translation_zh: editLinesToDefinition(values.translationZh) };
     case "back_examples":
       return { example_sentences: linesFromText(values.examplesText) };
+    case "back_unnatural_english":
+      return { unnatural_english: linesFromText(values.unnaturalEnglishText) };
     case "back_synonyms":
       return { synonyms: linesFromText(values.synonymsText) };
     case "back_antonyms":

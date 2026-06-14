@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS words (
   part_of_speech TEXT NOT NULL DEFAULT '',
   word_family TEXT,
   example_sentences JSONB NOT NULL DEFAULT '[]'::jsonb,
+  unnatural_english JSONB NOT NULL DEFAULT '[]'::jsonb,
   synonyms JSONB NOT NULL DEFAULT '[]'::jsonb,
   antonyms JSONB NOT NULL DEFAULT '[]'::jsonb,
   collocations JSONB NOT NULL DEFAULT '[]'::jsonb,

@@ -830,6 +830,72 @@ export function WordDetailBody({
               </FlashcardSection>
             ) : null}
 
+            {sect || browse ? (
+              <FlashcardSection
+                title="Unnatural English"
+                action={
+                  browse ? (
+                    <SectionEditLink
+                      wordId={browse.wordId}
+                      sectionId="back_unnatural_english"
+                    />
+                  ) : (
+                    <SectionEditActions
+                      isEditing={
+                        sect!.editingSectionId === "back_unnatural_english"
+                      }
+                      disabledStart={sectionEditBlocked(
+                        sect!.editingSectionId,
+                        "back_unnatural_english"
+                      )}
+                      saving={sect!.sectionSaving}
+                      onEdit={() =>
+                        sect!.onStartSectionEdit("back_unnatural_english")
+                      }
+                      onCancel={() => sect!.onCancelSectionEdit()}
+                      onSave={() =>
+                        sect!.onSaveTextSection("back_unnatural_english")
+                      }
+                    />
+                  )
+                }
+              >
+                {sect && sect.editingSectionId === "back_unnatural_english" ? (
+                  <ExampleSentencesEditor
+                    value={word.unnatural_english.join("\n")}
+                    onChange={(text) =>
+                      sect.onSectionFieldChange("unnatural_english", text)
+                    }
+                    hint="One per line · select words, then tap Highlight"
+                    rows={5}
+                    className={inlineTextareaCn}
+                  />
+                ) : word.unnatural_english.length > 0 ? (
+                  <ul className={cn(fcListClass, "text-foreground/80")}>
+                    {word.unnatural_english.map((s, i) => (
+                      <li key={i}>
+                        <ExampleSentenceText text={s} />
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-[15px] leading-snug text-muted-foreground font-sans italic">
+                    No unnatural English examples yet.
+                  </p>
+                )}
+              </FlashcardSection>
+            ) : word.unnatural_english.length > 0 ? (
+              <FlashcardSection title="Unnatural English">
+                <ul className={cn(fcListClass, "text-foreground/80")}>
+                  {word.unnatural_english.map((s, i) => (
+                    <li key={i}>
+                      <ExampleSentenceText text={s} />
+                    </li>
+                  ))}
+                </ul>
+              </FlashcardSection>
+            ) : null}
+
             <FlashcardEditableListSection
               title="Synonyms"
               sectionId="back_synonyms"
@@ -1002,6 +1068,31 @@ export function WordDetailBody({
             )}
           >
             {word.example_sentences.map((s, i) => (
+              <li key={i}>
+                <ExampleSentenceText text={s} />
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {!fc && word.unnatural_english.length > 0 && (
+        <div className="space-y-1">
+          <p
+            className={cn(
+              "font-medium text-muted-foreground uppercase tracking-wider font-sans",
+              fc ? "text-sm" : "text-xs"
+            )}
+          >
+            Unnatural English
+          </p>
+          <ul
+            className={cn(
+              "list-disc pl-5 space-y-1.5 font-sans text-muted-foreground",
+              fc ? "text-base sm:text-lg leading-relaxed" : "text-sm"
+            )}
+          >
+            {word.unnatural_english.map((s, i) => (
               <li key={i}>
                 <ExampleSentenceText text={s} />
               </li>

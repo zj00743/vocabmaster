@@ -34,6 +34,7 @@ export function normalizeWord(raw: WordWithProgress): WordWithProgress {
     ipa: String(raw.ipa ?? ""),
     part_of_speech: String(raw.part_of_speech ?? ""),
     example_sentences: asStringArray(raw.example_sentences as unknown),
+    unnatural_english: asStringArray(raw.unnatural_english as unknown),
     synonyms:
       synonymsPrimary.length > 0 ? synonymsPrimary : legacyExprs,
     antonyms: asStringArray(raw.antonyms as unknown),

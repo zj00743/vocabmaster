@@ -3,6 +3,7 @@ export type FlashcardInlineEditField =
   | "definition"
   | "translation_zh"
   | "examples"
+  | "unnatural_english"
   | "synonyms"
   | "antonyms"
   | "collocations"
@@ -22,7 +23,8 @@ export type WordCardEditSectionId =
   | "back_synonyms"
   | "back_antonyms"
   | "back_collocations"
-  | "back_examples";
+  | "back_examples"
+  | "back_unnatural_english";
 
 export type WordCardTextSectionId = WordCardEditSectionId;
 

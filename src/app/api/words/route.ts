@@ -352,6 +352,7 @@ export async function POST(request: NextRequest) {
         ipa: ipa ?? "",
         part_of_speech: part_of_speech ?? "",
         example_sentences: body.example_sentences ?? [],
+        unnatural_english: body.unnatural_english ?? [],
         synonyms: body.synonyms ?? [],
         antonyms: body.antonyms ?? [],
         collocations: body.collocations ?? [],

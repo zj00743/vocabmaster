@@ -47,6 +47,7 @@ export type CustomWordDraftSeed = {
   part_of_speech?: string;
   tag_ids?: string[];
   example_sentences?: string[];
+  unnatural_english?: string[];
   synonyms?: string[];
   antonyms?: string[];
   collocations?: string[];
@@ -73,6 +74,7 @@ export function CustomWordDraftDialog({
   const [definition, setDefinition] = useState("");
   const [translationZh, setTranslationZh] = useState("");
   const [examplesText, setExamplesText] = useState("");
+  const [unnaturalEnglishText, setUnnaturalEnglishText] = useState("");
   const [synonymsText, setSynonymsText] = useState("");
   const [antonymsText, setAntonymsText] = useState("");
   const [collocationsText, setCollocationsText] = useState("");
@@ -95,6 +97,7 @@ export function CustomWordDraftDialog({
     setDefinition(s.definition?.trim() ?? "");
     setTranslationZh(s.translation_zh?.trim() ?? "");
     setExamplesText(examplesToText(s.example_sentences));
+    setUnnaturalEnglishText(examplesToText(s.unnatural_english));
     setSynonymsText(examplesToText(s.synonyms));
     setAntonymsText(examplesToText(s.antonyms));
     setCollocationsText(examplesToText(s.collocations));
@@ -146,6 +149,7 @@ export function CustomWordDraftDialog({
       part_of_speech: partOfSpeech.trim(),
       tags: wordTags,
       example_sentences: linesToArray(examplesText),
+      unnatural_english: linesToArray(unnaturalEnglishText),
       synonyms: linesToArray(synonymsText),
       antonyms: linesToArray(antonymsText),
       collocations: linesToArray(collocationsText),
@@ -168,6 +172,7 @@ export function CustomWordDraftDialog({
     tagIds,
     tags,
     examplesText,
+    unnaturalEnglishText,
     synonymsText,
     antonymsText,
     collocationsText,
@@ -196,6 +201,9 @@ export function CustomWordDraftDialog({
           break;
         case "examples":
           setExamplesText(value);
+          break;
+        case "unnatural_english":
+          setUnnaturalEnglishText(value);
           break;
         case "tag_ids":
           setTagIds(value.split(",").filter(Boolean));
@@ -248,6 +256,9 @@ export function CustomWordDraftDialog({
         case "back_examples":
           snap.examples = examplesText;
           break;
+        case "back_unnatural_english":
+          snap.unnatural_english = unnaturalEnglishText;
+          break;
         case "back_synonyms":
           snap.synonyms = synonymsText;
           break;
@@ -271,6 +282,7 @@ export function CustomWordDraftDialog({
       definition,
       translationZh,
       examplesText,
+      unnaturalEnglishText,
       synonymsText,
       antonymsText,
       collocationsText,
@@ -283,6 +295,9 @@ export function CustomWordDraftDialog({
     if (s.definition !== undefined) setDefinition(s.definition);
     if (s.translation_zh !== undefined) setTranslationZh(s.translation_zh);
     if (s.examples !== undefined) setExamplesText(s.examples);
+    if (s.unnatural_english !== undefined) {
+      setUnnaturalEnglishText(s.unnatural_english);
+    }
     if (s.synonyms !== undefined) setSynonymsText(s.synonyms);
     if (s.antonyms !== undefined) setAntonymsText(s.antonyms);
     if (s.collocations !== undefined) setCollocationsText(s.collocations);
@@ -341,6 +356,7 @@ export function CustomWordDraftDialog({
           part_of_speech: partOfSpeech.trim(),
           tag_ids: tagIds,
           example_sentences: linesToArray(examplesText),
+          unnatural_english: linesToArray(unnaturalEnglishText),
           synonyms: linesToArray(synonymsText),
           antonyms: linesToArray(antonymsText),
           collocations: linesToArray(collocationsText),

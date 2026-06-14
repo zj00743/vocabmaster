@@ -325,6 +325,25 @@ export function WordSectionEditForm({
         />
       );
 
+    case "back_unnatural_english":
+      return (
+        <ExampleSentencesEditor
+          value={values.unnaturalEnglishText}
+          onChange={(unnaturalEnglishText) => onChange({ unnaturalEnglishText })}
+          placeholder="Unnatural or incorrect English usage…"
+          full={full}
+          rows={
+            full
+              ? undefined
+              : Math.min(
+                  12,
+                  Math.max(6, values.unnaturalEnglishText.split("\n").length + 3)
+                )
+          }
+          className={full ? fullTextareaCn : boxedTextareaCn}
+        />
+      );
+
     default:
       return null;
   }

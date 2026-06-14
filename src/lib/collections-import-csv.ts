@@ -12,6 +12,7 @@ export type CollectionsImportRow = {
   ipa: string;
   tags: string[];
   example_sentences: string[];
+  unnatural_english: string[];
   synonyms: string[];
   antonyms: string[];
   collocations: string[];
@@ -94,7 +95,12 @@ export function parseCollectionsImportCsv(content: string): CollectionsImportRow
   const antIdx = headers.findIndex((h) => h.includes("antonym"));
   const colIdx = headers.findIndex((h) => h.includes("collocation"));
   const exIdx = headers.findIndex(
-    (h) => h.includes("example") || h.includes("sentence")
+    (h) =>
+      h === "example_sentences" ||
+      (h.includes("example") && !h.includes("unnatural"))
+  );
+  const unnaturalIdx = headers.findIndex(
+    (h) => h === "unnatural_english" || h.includes("unnatural")
   );
   const showImageIdx = headers.findIndex(
     (h) => h === "show_image" || h === "image"
@@ -118,6 +124,8 @@ export function parseCollectionsImportCsv(content: string): CollectionsImportRow
       ipa: ipaIdx !== -1 ? (cols[ipaIdx] ?? "").trim() : "",
       tags: tagsIdx !== -1 ? splitList(cols[tagsIdx]) : [],
       example_sentences: exIdx !== -1 ? splitList(cols[exIdx]) : [],
+      unnatural_english:
+        unnaturalIdx !== -1 ? splitList(cols[unnaturalIdx]) : [],
       synonyms: synIdx !== -1 ? splitList(cols[synIdx]) : [],
       antonyms: antIdx !== -1 ? splitList(cols[antIdx]) : [],
       collocations: colIdx !== -1 ? splitList(cols[colIdx]) : [],

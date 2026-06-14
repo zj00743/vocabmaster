@@ -70,6 +70,9 @@ function patchFromRow(
     if (row.example_sentences.length > 0) {
       patch.example_sentences = row.example_sentences;
     }
+    if (row.unnatural_english.length > 0) {
+      patch.unnatural_english = row.unnatural_english;
+    }
     if (row.synonyms.length > 0) patch.synonyms = row.synonyms;
     if (row.antonyms.length > 0) patch.antonyms = row.antonyms;
     if (row.collocations.length > 0) patch.collocations = row.collocations;
@@ -131,6 +134,7 @@ async function importRow(
         ipa: row.ipa,
         part_of_speech: row.part_of_speech,
         example_sentences: row.example_sentences,
+        unnatural_english: row.unnatural_english,
         synonyms: row.synonyms,
         antonyms: row.antonyms,
         collocations: row.collocations,
