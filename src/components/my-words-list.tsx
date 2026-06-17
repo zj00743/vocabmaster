@@ -150,8 +150,12 @@ export function MyWordsList({
         if (!expressionsOnlyFetch && effectiveFrequency !== "all") {
           params.set("frequency", effectiveFrequency);
         }
-        const activeTag = browseTag ?? effectiveTag;
-        if (activeTag && activeTag !== "all") {
+        const activeTag = browseCorpusByTag
+          ? browseTag
+          : effectiveTag !== "all"
+            ? effectiveTag
+            : null;
+        if (activeTag) {
           params.set("tag_id", activeTag);
         }
         params.set("sort", effectiveSort);
@@ -349,28 +353,28 @@ export function MyWordsList({
   useEffect(() => {
     const canonicalListQuery = canonicalWordsListQueryString(listContextQuery);
 
-    if (!selectedWordId) {
-      syncedQueryRef.current = listQueryFromUrl;
-      return;
-    }
-
     if (wordsListQueriesEqual(listContextQuery, searchParams)) {
       syncedQueryRef.current = canonicalListQuery;
       return;
     }
     syncedQueryRef.current = canonicalListQuery;
 
-    const tab = searchParams.get("tab");
-    const editorTab =
-      tab === "back" || tab === "memory-curve" ? tab : undefined;
-    router.replace(
-      wordDetailHref(
-        selectedWordId,
-        listContextQuery,
-        editorTab ? { tab: editorTab } : undefined
-      )
-    );
-  }, [listContextQuery, listQueryFromUrl, selectedWordId, router, searchParams]);
+    if (selectedWordId) {
+      const tab = searchParams.get("tab");
+      const editorTab =
+        tab === "back" || tab === "memory-curve" ? tab : undefined;
+      router.replace(
+        wordDetailHref(
+          selectedWordId,
+          listContextQuery,
+          editorTab ? { tab: editorTab } : undefined
+        )
+      );
+      return;
+    }
+
+    router.replace(wordsListHref(listContextQuery));
+  }, [listContextQuery, selectedWordId, router, searchParams]);
 
   const enterSelectMode = useCallback(() => {
     setSelectMode(true);
@@ -533,10 +537,14 @@ export function MyWordsList({
   const canBulkSelect = !browseCorpusByTag;
 
   const activeTagLabel = useMemo(() => {
-    const id = browseTag ?? (tagFilter !== "all" ? tagFilter : null);
+    const id = browseCorpusByTag
+      ? browseTag
+      : tagFilter !== "all"
+        ? tagFilter
+        : null;
     if (!id) return null;
     return tags.find((t) => t.id === id)?.name ?? null;
-  }, [browseTag, tagFilter, tags]);
+  }, [browseCorpusByTag, browseTag, tagFilter, tags]);
   const allOnPageSelected =
     words.length > 0 && words.every((w) => selectedIds.has(w.id));
   const selectedCount = selectedIds.size;

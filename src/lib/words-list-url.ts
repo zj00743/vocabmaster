@@ -138,8 +138,12 @@ export function buildWordsListQuery(
   if (!input.expressionsOnly && input.frequencyFilter !== "all") {
     p.set("frequency", input.frequencyFilter);
   }
-  const activeTag = input.browseTag ?? input.tagFilter;
-  if (activeTag && activeTag !== "all") {
+  const activeTag = input.browseCorpusByTag
+    ? input.browseTag
+    : input.tagFilter !== "all"
+      ? input.tagFilter
+      : null;
+  if (activeTag) {
     p.set("tag_id", activeTag);
   }
   p.set("sort", input.sortBy);
