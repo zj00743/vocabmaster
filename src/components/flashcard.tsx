@@ -428,7 +428,7 @@ export function Flashcard({
               </p>
             ) : blankSlotWidths.length > 0 ? (
               <div
-                className="flex flex-wrap items-center justify-center gap-2 shrink-0"
+                className="flex min-w-0 max-w-full flex-wrap items-center justify-center gap-2"
                 aria-hidden
               >
                 {blankSlotWidths.map((widthCh, i) => (
