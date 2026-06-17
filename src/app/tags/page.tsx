@@ -33,13 +33,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import type { TagWithCount } from "@/lib/tags";
 import { filterTags } from "@/lib/tags";
 import { cn } from "@/lib/utils";
@@ -120,6 +113,7 @@ export default function TagsPage() {
   const [mergeOpen, setMergeOpen] = useState(false);
   const [mergeSourceIds, setMergeSourceIds] = useState<string[]>([]);
   const [mergeTargetId, setMergeTargetId] = useState("");
+  const [mergeTargetSearch, setMergeTargetSearch] = useState("");
   const [merging, setMerging] = useState(false);
 
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -150,6 +144,19 @@ export default function TagsPage() {
   const renameTarget = tags.find((t) => t.id === renameTargetId) ?? null;
   const deleteTargets = tags.filter((t) => deleteTargetIds.includes(t.id));
   const mergeSources = tags.filter((t) => mergeSourceIds.includes(t.id));
+  const mergeTargetOptions = useMemo(() => {
+    const sourceSet = new Set(mergeSourceIds);
+    const options = tags.filter((t) => !sourceSet.has(t.id));
+    if (mergeSourceIds.length > 1) {
+      options.push(...mergeSources);
+    }
+    return options;
+  }, [tags, mergeSourceIds, mergeSources]);
+  const filteredMergeTargets = useMemo(
+    () => filterTags(mergeTargetOptions, mergeTargetSearch),
+    [mergeTargetOptions, mergeTargetSearch]
+  );
+  const mergeTarget = mergeTargetOptions.find((t) => t.id === mergeTargetId) ?? null;
 
   const enterSelectMode = () => {
     setSelectMode(true);
@@ -185,6 +192,7 @@ export default function TagsPage() {
   const openMerge = (sourceIds: string[]) => {
     setMergeSourceIds(sourceIds);
     setMergeTargetId("");
+    setMergeTargetSearch("");
     setMergeOpen(true);
   };
 
@@ -549,30 +557,71 @@ export default function TagsPage() {
               )}
             </DialogDescription>
           </DialogHeader>
-          <Select
-            value={mergeTargetId}
-            onValueChange={(v) => v && setMergeTargetId(v)}
-            disabled={merging}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Target tag" />
-            </SelectTrigger>
-            <SelectContent>
-              {tags
-                .filter((t) => !mergeSourceIds.includes(t.id))
-                .map((t) => (
-                  <SelectItem key={t.id} value={t.id}>
-                    {t.name}
-                  </SelectItem>
-                ))}
-              {mergeSourceIds.length > 1 &&
-                mergeSources.map((t) => (
-                  <SelectItem key={t.id} value={t.id}>
-                    {t.name} (keep this one)
-                  </SelectItem>
-                ))}
-            </SelectContent>
-          </Select>
+          <div className="space-y-2">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={mergeTargetSearch}
+                onChange={(e) => setMergeTargetSearch(e.target.value)}
+                placeholder="Search target tag…"
+                className="pl-10"
+                disabled={merging}
+              />
+            </div>
+            {mergeTarget ? (
+              <p className="text-sm text-muted-foreground">
+                Target:{" "}
+                <span className="font-medium text-foreground">
+                  {mergeTarget.name}
+                  {mergeSourceIds.length > 1 &&
+                  mergeSourceIds.includes(mergeTarget.id)
+                    ? " (keep this one)"
+                    : ""}
+                </span>
+              </p>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Choose the tag to keep.
+              </p>
+            )}
+            <div className="max-h-48 overflow-y-auto rounded-lg border">
+              {filteredMergeTargets.length === 0 ? (
+                <p className="px-3 py-2 text-sm text-muted-foreground">
+                  No matching tags
+                </p>
+              ) : (
+                <ul className="py-1">
+                  {filteredMergeTargets.map((tag) => {
+                    const selected = mergeTargetId === tag.id;
+                    const keepSource =
+                      mergeSourceIds.length > 1 &&
+                      mergeSourceIds.includes(tag.id);
+                    return (
+                      <li key={tag.id}>
+                        <button
+                          type="button"
+                          disabled={merging}
+                          onClick={() => setMergeTargetId(tag.id)}
+                          className={cn(
+                            "flex w-full items-center justify-between px-3 py-2 text-left text-sm transition-colors hover:bg-muted/60 disabled:opacity-50",
+                            selected && "bg-primary/5 text-primary"
+                          )}
+                        >
+                          <span>
+                            {tag.name}
+                            {keepSource ? " (keep this one)" : ""}
+                          </span>
+                          {selected ? (
+                            <Check className="size-4 shrink-0" />
+                          ) : null}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+          </div>
           <DialogFooter>
             <Button
               variant="outline"
