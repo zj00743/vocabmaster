@@ -386,7 +386,7 @@ export function Flashcard({
             : "flex-1 min-h-0 overflow-y-auto overscroll-contain p-6 sm:p-8"
         )}
       >
-        <div className="flex flex-col items-center gap-3 w-full max-w-xl mx-auto">
+        <div className="flex w-full max-w-xl min-w-0 mx-auto flex-col items-center gap-3">
           <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-2 max-w-full">
             {(word.tags ?? []).slice(0, 3).map((tag) => (
               <Badge
@@ -412,7 +412,7 @@ export function Flashcard({
               </Badge>
             ) : null}
           </div>
-          <div className="flex flex-wrap items-center justify-center gap-3 w-full max-w-xl">
+          <div className="flex w-full max-w-xl min-w-0 flex-col items-center gap-3">
             {lemmaFullyRevealed ? (
               <p className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground break-words font-sans text-center">
                 {lemma}
@@ -428,13 +428,13 @@ export function Flashcard({
               </p>
             ) : blankSlotWidths.length > 0 ? (
               <div
-                className="flex min-w-0 max-w-full flex-wrap items-center justify-center gap-2"
+                className="flex w-full min-w-0 flex-wrap items-center justify-center gap-2"
                 aria-hidden
               >
                 {blankSlotWidths.map((widthCh, i) => (
                   <span
                     key={i}
-                    className="inline-block h-9 sm:h-10 rounded-md border border-muted-foreground/25 bg-muted"
+                    className="inline-block h-9 shrink-0 sm:h-10 rounded-md border border-muted-foreground/25 bg-muted"
                     style={{
                       width: `${widthCh}ch`,
                       minWidth: "2.5rem",
@@ -443,7 +443,7 @@ export function Flashcard({
                 ))}
               </div>
             ) : null}
-            <div className="flex items-center gap-1.5 shrink-0">
+            <div className="flex items-center justify-center gap-1.5">
               <Button
                 type="button"
                 variant="outline"
